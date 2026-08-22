@@ -1,5 +1,5 @@
-import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 /**
  * Guards a route behind authentication, and optionally behind a role list.
@@ -24,7 +24,7 @@ export default function ProtectedRoute({ children, roles }) {
 
   if (roles && roles.length > 0 && !roles.includes(user.role)) {
     // Authenticated but wrong role - send them to their own dashboard.
-    const fallback = user.role === 'HR' ? '/admin' : '/employee';
+    const fallback = user.role === "HR" ? "/admin" : "/employee";
     return <Navigate to={fallback} replace />;
   }
 
