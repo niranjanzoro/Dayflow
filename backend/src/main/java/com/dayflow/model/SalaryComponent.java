@@ -78,5 +78,5 @@ public class SalaryComponent {
 
     public enum ComputationType {
         FIXED_AMOUNT, PERCENT_OF_WAGE, PERCENT_OF_BASIC
-    }
+    }git
 }
