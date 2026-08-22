@@ -118,14 +118,6 @@ export default function Login() {
           <p style={{ fontSize: 13.5, textAlign: 'center' }}>
             New employee? <Link to="/signup" style={{ fontWeight: 700 }}>Create an account</Link>
           </p>
-
-          <div className="card" style={{ marginTop: 22, background: 'var(--bg)', border: '1px dashed var(--border)' }}>
-            <p style={{ fontSize: 12, lineHeight: 1.6 }}>
-              <strong style={{ color: 'var(--ink)' }}>Demo accounts</strong><br />
-              HR admin: admin@dayflow.com / Admin@123<br />
-              Employee: rahul.mehta@dayflow.com / Employee@123
-            </p>
-          </div>
         </div>
       </div>
     </div>
