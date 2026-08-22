@@ -3,7 +3,7 @@ setlocal
 
 set "PROJECT_ROOT=%~dp0"
 set "FRONTEND_DIR=%PROJECT_ROOT%frontend"
-set "BACKEND_DIR=%PROJECT_ROOT%backend\src"
+set "BACKEND_DIR=%PROJECT_ROOT%backend"
 
 where npm >nul 2>&1
 if errorlevel 1 (
@@ -40,6 +40,7 @@ if not exist "%FRONTEND_DIR%\node_modules" (
 )
 
 echo Starting Dayflow frontend and backend...
+
 start "Dayflow Frontend" /D "%FRONTEND_DIR%" cmd /k npm run dev
 start "Dayflow Backend" /D "%BACKEND_DIR%" cmd /k mvn spring-boot:run
 
@@ -47,4 +48,5 @@ echo.
 echo Frontend: http://localhost:5173
 echo Backend:  http://localhost:8080
 echo Close the two opened terminals to stop the services.
+
 endlocal
