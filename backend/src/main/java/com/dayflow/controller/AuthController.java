@@ -16,13 +16,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Auth endpoints - owned by M2.
- * Maps to data dictionary §4.5. Public (see SecurityConfig: /api/auth/** permitAll).
- *
- * Auth is not a separate entity - it reuses Employee (email + password + role
- * live on the Employee table), avoiding a redundant User table for the hackathon.
- */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -60,18 +53,15 @@ public class AuthController {
         employee.setRole(Role.EMPLOYEE);
         employee.setStatus("PENDING");
         employee.setEmailVerified(false);
-        // SECURITY: Use cryptographically secure random for verification code
         employee.setVerificationCode(String.format("%06d", ThreadLocalRandom.current().nextInt(1_000_000)));
         employee.setVerificationExpiresAt(LocalDateTime.now().plusMinutes(15));
         employee.setJoiningDate(LocalDate.now());
         employee.setJobTitle("Employee");
-        // SECURITY: Add account lockout prevention
         employee.setFailedLoginAttempts(0);
         employee.setLocked(false);
 
         Employee saved = employeeRepository.save(employee);
 
-        // password excluded automatically via @JsonIgnore on the entity
         return ResponseEntity.status(HttpStatus.CREATED).body(new RegistrationResponse(
                 saved.getEmail(), saved.getVerificationCode()));
     }
@@ -131,8 +121,6 @@ public class AuthController {
                 } while (employeeRepository.existsByEmployeeId(employeeId));
                 return employeeId;
         }
-
-    // ---- Request/response shapes (§4.5) ----
 
     public record RegisterRequest(
             String employeeId,

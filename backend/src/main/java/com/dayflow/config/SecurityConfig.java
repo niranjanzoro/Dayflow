@@ -21,17 +21,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
-/**
- * Spring Security configuration - owned by M2.
- *
- * - Stateless: no HTTP sessions, every request authenticated via JWT.
- * - /api/auth/** (register, login) is public; everything else requires
- *   a valid Bearer token.
- * - Fine-grained role checks (EMPLOYEE vs HR) for specific endpoints like
- *   GET /api/employees (HR-only list) are enforced with @PreAuthorize in
- *   the controllers, on top of the general "authenticated" rule here.
- * - JwtFilter runs before Spring's own UsernamePasswordAuthenticationFilter.
- */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -85,7 +74,7 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         configuration.setExposedHeaders(List.of("X-Total-Count", "X-Page-Count"));
         configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L); // Cache preflight for 1 hour
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
