@@ -16,6 +16,27 @@ export default function AdminDashboard() {
   const [leaves, setLeaves] = useState([]);
   const [payroll, setPayroll] = useState([]);
 
+  useEffect(() => {
+    let mounted = true;
+    
+    (async () => {
+      setLoading(true);
+      const [emps, lv, pay] = await Promise.all([
+        employeeApi.getAllEmployees(),
+        leaveApi.getAllLeaves(),
+        payrollApi.getAllPayroll(),
+      ]);
+      if (mounted) {
+        setEmployees(emps);
+        setLeaves(lv);
+        setPayroll(pay);
+        setLoading(false);
+      }
+    })();
+    
+    return () => { mounted = false; };
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     const [emps, lv, pay] = await Promise.all([
@@ -28,8 +49,6 @@ export default function AdminDashboard() {
     setPayroll(pay);
     setLoading(false);
   }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const activeCount = employees.filter((e) => e.status === EMPLOYEE_STATUS.ACTIVE).length;
   const pendingApprovals = employees.filter((e) => e.status === EMPLOYEE_STATUS.PENDING);

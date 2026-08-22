@@ -19,6 +19,31 @@ export default function Attendance() {
   const [search, setSearch] = useState('');
   const [clocking, setClocking] = useState(false);
 
+  useEffect(() => {
+    let mounted = true;
+    
+    (async () => {
+      setLoading(true);
+      if (isHR) {
+        const [all, emps] = await Promise.all([attendanceApi.getAllAttendance(), employeeApi.getAllEmployees()]);
+        if (mounted) {
+          setRecords(all);
+          setEmployees(emps);
+          setLoading(false);
+        }
+      } else {
+        const [mine, t] = await Promise.all([attendanceApi.getMyAttendance(user.id), attendanceApi.getTodayRecord(user.id)]);
+        if (mounted) {
+          setRecords(mine);
+          setToday(t);
+          setLoading(false);
+        }
+      }
+    })();
+    
+    return () => { mounted = false; };
+  }, [isHR, user.id]);
+
   const load = useCallback(async () => {
     setLoading(true);
     if (isHR) {
@@ -32,8 +57,6 @@ export default function Attendance() {
     }
     setLoading(false);
   }, [isHR, user.id]);
-
-  useEffect(() => { load(); }, [load]);
 
   const handleClock = async () => {
     setClocking(true);

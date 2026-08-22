@@ -17,6 +17,30 @@ export default function Payroll() {
   const [employees, setEmployees] = useState([]);
   const [showForm, setShowForm] = useState(false);
 
+  useEffect(() => {
+    let mounted = true;
+    
+    (async () => {
+      setLoading(true);
+      if (isHR) {
+        const [all, emps] = await Promise.all([payrollApi.getAllPayroll(), employeeApi.getAllEmployees()]);
+        if (mounted) {
+          setPayroll(all);
+          setEmployees(emps.filter((e) => e.status === EMPLOYEE_STATUS.ACTIVE));
+          setLoading(false);
+        }
+      } else {
+        const mine = await payrollApi.getMyPayroll(user.id);
+        if (mounted) {
+          setPayroll(mine);
+          setLoading(false);
+        }
+      }
+    })();
+    
+    return () => { mounted = false; };
+  }, [isHR, user.id]);
+
   const load = useCallback(async () => {
     setLoading(true);
     if (isHR) {
@@ -29,8 +53,6 @@ export default function Payroll() {
     }
     setLoading(false);
   }, [isHR, user.id]);
-
-  useEffect(() => { load(); }, [load]);
 
   const employeeName = (id) => employees.find((e) => e.id === id)?.name || id;
 

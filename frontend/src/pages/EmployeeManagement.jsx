@@ -22,14 +22,27 @@ export default function EmployeeManagement() {
   const [tab, setTab] = useState('ALL');
   const [confirm, setConfirm] = useState(null); // { type, employee }
 
+  useEffect(() => {
+    let mounted = true;
+    
+    (async () => {
+      setLoading(true);
+      const emps = await employeeApi.getAllEmployees();
+      if (mounted) {
+        setEmployees(emps);
+        setLoading(false);
+      }
+    })();
+    
+    return () => { mounted = false; };
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     const emps = await employeeApi.getAllEmployees();
     setEmployees(emps);
     setLoading(false);
   }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const pendingCount = employees.filter((e) => e.status === EMPLOYEE_STATUS.PENDING).length;
 

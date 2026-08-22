@@ -71,4 +71,13 @@ public class Employee {
 
     private String verificationCode;
     private LocalDateTime verificationExpiresAt;
+
+    // ===== SECURITY: Account Lockout Prevention =====
+    @Column(nullable = false)
+    private int failedLoginAttempts = 0;
+
+    @Column(nullable = false)
+    private boolean locked = false;
+
+    private LocalDateTime lockedUntil;
 }

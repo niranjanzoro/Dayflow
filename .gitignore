@@ -1,3 +1,14 @@
+# ===== SECURITY: NEVER COMMIT SECRETS =====
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+application-secrets.properties
+application-prod.properties
+jwt-secret.key
+db-password.txt
+
 # Logs
 logs
 *.log
@@ -22,3 +33,212 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ===== Java & Maven =====
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+/bin/
+.classpath
+.project
+.settings/
+*.iml
+*.iws
+*.ipr
+.gradle/
+.mvn/wrapper/maven-wrapper.jar
+maven-wrapper.properties
+.flattened-pom.xml
+
+# ===== Database & Backups =====
+*.sql
+*.sqlite
+*.db
+*.bak
+*.backup
+*~
+
+# ===== Coverage & Test Reports =====
+coverage/
+.nyc_output/
+lcov.info
+
+# ===== Windows-Specific Files =====
+Thumbs.db
+*.lnk
+Desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db
+
+# ===== macOS Specific Files =====
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# ===== IDE Plugins & Configurations =====
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+.idea/*
+!.idea/runConfigurations
+!.idea/codeStyles
+.classpath
+.factorypath
+.c9/
+*.swp
+*.swo
+*~
+.atom/
+.buildpath
+.cache
+.checkstyle
+.project
+.pydevproject
+.team
+.texlipse
+.sts4-cache
+.LSOverride
+*.iml
+
+# ===== Node.js & npm =====
+node_modules/
+npm-debug.log
+npm-error.log
+package-lock.json
+yarn.lock
+.pnpm-lock.yaml
+.pnp
+.pnp.js
+pnpm-lock.yaml
+lerna-debug.log
+
+# ===== Vite & Build Tools =====
+dist/
+dist-ssr/
+.vite
+vite-cache/
+.viteignore
+
+# ===== Maven Specific =====
+.m2/
+.mvn/wrapper/
+target/
+*.jar.original
+dependency-reduced-pom.xml
+pom.xml.versionsBackup
+buildNumber.properties
+.mvn/timing.properties
+.mvn/extensions.xml
+
+# ===== Gradle Specific =====
+.gradle/
+gradle-app.setting
+gradle.properties
+gradlew
+gradlew.bat
+.gradle-wrapper
+build/
+!gradle/wrapper/gradle-wrapper.jar
+.gradle-build-cache/
+
+# ===== Spring Boot Specific =====
+*.log.gz
+*.log.txt
+application-*.properties
+!application.properties
+!application-observability.properties
+.spring-boot-devtools.properties
+spring-boot-devtools.properties
+
+# ===== Java Heap Dumps & Memory =====
+*.hprof
+*.heapdump
+*.jfr
+*.dump
+core.*
+crash.txt
+
+# ===== Temporary & Cache Files =====
+*.tmp
+*.temp
+*.cache
+*.bak*
+*.swp*
+*.swo*
+*~
+.cache/
+.DS_Store
+.AppleDouble
+Thumbs.db
+ehthumbs.db
+
+# ===== Test & Coverage Output =====
+junit-reports/
+test-results/
+coverage-report/
+.coverage
+.nyc_output
+MOCHAWESOME_REPORT_SPECS/
+report/
+reports/
+*.gcda
+*.gcno
+
+# ===== Local Development Files =====
+.env.local.php
+local.settings.json
+dev.env
+.local
+.secrets
+
+# ===== Application Output & Logs =====
+logs/
+log/
+*.log
+app.log
+error.log
+spring.log
+debug.log
+audit.log
+output/
+reports/
+dump/
+
+# ===== Docker & Container Specific =====
+.dockerignore
+docker-compose.override.yml
+
+# ===== Git Specific =====
+.git/
+.gitkeep
+*.orig
+*.BACKUP.*
+*.BASE.*
+*.REMOTE.*
+*.LOCAL.*
+
+# ===== Project Specific (Observability) =====
+observability-test-results.txt
+*-test-results.txt
+test-output/
+metrics/
+
+# ===== VS Code Workspace =====
+*.code-workspace
+.vscode/
+
+# ===== Misc Build & Tool Files =====
+.bsp/
+.metals/
+.scalafmt.conf
+.scalafix.conf
+.fusesource/
+out/
+libs/
+.bin/
+.vendor/

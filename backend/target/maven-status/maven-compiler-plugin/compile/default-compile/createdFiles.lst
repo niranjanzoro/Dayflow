@@ -1,3 +1,4 @@
+com\dayflow\controller\HealthController$HealthStatus.class
 com\dayflow\model\SalaryComponent$SalaryComponentType.class
 com\dayflow\model\LeaveRequest.class
 com\dayflow\controller\AuthController$MessageResponse.class
@@ -12,6 +13,7 @@ com\dayflow\controller\AuthController$VerifyEmailRequest.class
 com\dayflow\controller\PayrollController$UpdatePayrollRequest.class
 com\dayflow\repository\EmployeeRepository.class
 com\dayflow\security\JwtUtil.class
+com\dayflow\util\ValidationUtil.class
 com\dayflow\controller\AuthController$RegisterRequest.class
 com\dayflow\controller\LeaveController$ReviewRequest.class
 com\dayflow\DayflowApplication.class
@@ -31,11 +33,13 @@ com\dayflow\controller\PayrollController.class
 com\dayflow\config\SecurityConfig.class
 com\dayflow\controller\AuthController.class
 com\dayflow\model\Employee.class
+com\dayflow\util\AuditLogger.class
 com\dayflow\controller\PayrollController$CreatePayrollRequest.class
 com\dayflow\model\LeaveRequest$LeaveStatus.class
 com\dayflow\model\LeaveRequest$LeaveType.class
 com\dayflow\security\JwtFilter.class
 com\dayflow\service\AttendanceService.class
+com\dayflow\controller\HealthController.class
 com\dayflow\config\DataInitializer.class
 com\dayflow\controller\AuthController$RegistrationResponse.class
 com\dayflow\repository\SalaryStructureRepository.class
@@ -44,6 +48,7 @@ com\dayflow\controller\LeaveController.class
 com\dayflow\controller\LeaveController$SubmitLeaveRequest.class
 com\dayflow\controller\AuthController$ErrorResponse.class
 com\dayflow\controller\LeaveController$AdminCommentRequest.class
+com\dayflow\security\RateLimitingInterceptor.class
 com\dayflow\service\EmployeeService.class
 com\dayflow\controller\AttendanceController.class
 com\dayflow\model\Attendance$AttendanceStatus.class

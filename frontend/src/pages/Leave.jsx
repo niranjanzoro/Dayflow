@@ -23,6 +23,31 @@ export default function Leave() {
   const [filter, setFilter] = useState('ALL');
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    let mounted = true;
+    
+    (async () => {
+      setLoading(true);
+      if (isHR) {
+        const [all, emps] = await Promise.all([leaveApi.getAllLeaves(), employeeApi.getAllEmployees()]);
+        if (mounted) {
+          setLeaves(all);
+          setEmployees(emps);
+          setLoading(false);
+        }
+      } else {
+        const [mine, bal] = await Promise.all([leaveApi.getMyLeaves(user.id), leaveApi.getMyLeaveBalance(user.id)]);
+        if (mounted) {
+          setLeaves(mine);
+          setBalance(bal);
+          setLoading(false);
+        }
+      }
+    })();
+    
+    return () => { mounted = false; };
+  }, [isHR, user.id]);
+
   const load = useCallback(async () => {
     setLoading(true);
     if (isHR) {
@@ -36,8 +61,6 @@ export default function Leave() {
     }
     setLoading(false);
   }, [isHR, user.id]);
-
-  useEffect(() => { load(); }, [load]);
 
   const employeeName = (id) => employees.find((e) => e.id === id)?.name || id;
 

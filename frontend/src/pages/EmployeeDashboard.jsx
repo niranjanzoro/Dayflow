@@ -28,6 +28,31 @@ export default function EmployeeDashboard() {
   const [payroll, setPayroll] = useState([]);
   const [clocking, setClocking] = useState(false);
 
+  useEffect(() => {
+    let mounted = true;
+    
+    (async () => {
+      setLoading(true);
+      const [t, bal, lv, att, pay] = await Promise.all([
+        attendanceApi.getTodayRecord(user.id),
+        leaveApi.getMyLeaveBalance(user.id),
+        leaveApi.getMyLeaves(user.id),
+        attendanceApi.getMyAttendance(user.id),
+        payrollApi.getMyPayroll(user.id),
+      ]);
+      if (mounted) {
+        setToday(t);
+        setBalance(bal);
+        setLeaves(lv);
+        setMonthAttendance(att);
+        setPayroll(pay);
+        setLoading(false);
+      }
+    })();
+    
+    return () => { mounted = false; };
+  }, [user.id]);
+
   const load = useCallback(async () => {
     setLoading(true);
     const [t, bal, lv, att, pay] = await Promise.all([
@@ -44,8 +69,6 @@ export default function EmployeeDashboard() {
     setPayroll(pay);
     setLoading(false);
   }, [user.id]);
-
-  useEffect(() => { load(); }, [load]);
 
   const handleClock = async () => {
     setClocking(true);

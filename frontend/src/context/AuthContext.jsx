@@ -1,27 +1,25 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 import * as authApi from '../api/authApi';
 
 const AuthContext = createContext(null);
 const STORAGE_KEY = 'dayflow_auth';
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(true); // hydrating from storage
-
-  useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        setUser(parsed.user);
-        setToken(parsed.token);
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
-      }
+function initAuthFromStorage() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      localStorage.removeItem(STORAGE_KEY);
     }
-    setLoading(false);
-  }, []);
+  }
+  return { user: null, token: null };
+}
+
+export function AuthProvider({ children }) {
+  const stored = initAuthFromStorage();
+  const [user, setUser] = useState(stored.user);
+  const [token, setToken] = useState(stored.token);
 
   const persist = (nextUser, nextToken) => {
     setUser(nextUser);
@@ -63,7 +61,6 @@ export function AuthProvider({ children }) {
     user,
     token,
     isAuthenticated: !!token && !!user,
-    loading,
     isHR: user?.role === 'HR',
     login,
     signup,

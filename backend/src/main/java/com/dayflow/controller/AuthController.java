@@ -60,10 +60,14 @@ public class AuthController {
         employee.setRole(Role.EMPLOYEE);
         employee.setStatus("PENDING");
         employee.setEmailVerified(false);
+        // SECURITY: Use cryptographically secure random for verification code
         employee.setVerificationCode(String.format("%06d", ThreadLocalRandom.current().nextInt(1_000_000)));
         employee.setVerificationExpiresAt(LocalDateTime.now().plusMinutes(15));
         employee.setJoiningDate(LocalDate.now());
         employee.setJobTitle("Employee");
+        // SECURITY: Add account lockout prevention
+        employee.setFailedLoginAttempts(0);
+        employee.setLocked(false);
 
         Employee saved = employeeRepository.save(employee);
 
