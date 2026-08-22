@@ -228,6 +228,15 @@ observability-test-results.txt
 test-output/
 metrics/
 
+# ===== Test Reports (Do Not Commit) =====
+OBSERVABILITY-TEST-REPORT.md
+OBSERVABILITY-SUMMARY.md
+Observability-Tests-Simple.ps1
+Observability-Tests.ps1
+observability-tests.sh
+*-test-results.txt
+test-reports/
+
 # ===== VS Code Workspace =====
 *.code-workspace
 .vscode/
