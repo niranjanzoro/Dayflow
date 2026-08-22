@@ -63,7 +63,7 @@ public class JwtFilter extends OncePerRequestFilter {
                     var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
 
                     var authToken = new UsernamePasswordAuthenticationToken(
-                            email, // principal - used downstream to resolve "me" endpoints
+                            employeeId,
                             null,
                             authorities
                     );

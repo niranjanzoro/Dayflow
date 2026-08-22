@@ -4,7 +4,8 @@ import { ROLES, EMPLOYEE_STATUS } from '../utils/roles';
 
 function sanitize(user) {
   if (!user) return user;
-  const { password, ...safe } = user;
+  const safe = { ...user };
+  delete safe.password;
   return safe;
 }
 
@@ -33,7 +34,7 @@ export async function login({ email, password }) {
   }
 
   const { data } = await axiosClient.post('/auth/login', { email, password });
-  return data; // expected shape: { token, user }
+  return data;
 }
 
 // Sign up is only ever for employees - HR/Admin accounts are provisioned
@@ -66,8 +67,14 @@ export async function signupEmployee({ name, email, password, phone, department,
   }
 
   const { data } = await axiosClient.post('/auth/signup', {
-    name, email, password, phone, department, designation,
+    name, email, password, phone, department, designation, role: ROLES.EMPLOYEE,
   });
+  return data;
+}
+
+export async function verifyEmail(email, code) {
+  if (USE_MOCK) return { message: 'Email verified successfully' };
+  const { data } = await axiosClient.post('/auth/verify-email', { email, code });
   return data;
 }
 

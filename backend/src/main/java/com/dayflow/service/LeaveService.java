@@ -7,6 +7,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import com.dayflow.repository.LeaveAllocationRepository;
 
 /**
  * Owned by M3.
@@ -21,10 +24,13 @@ import java.util.List;
 public class LeaveService {
 
     private final LeaveRequestRepository leaveRequestRepository;
+    private final LeaveAllocationRepository leaveAllocationRepository;
 
     @Autowired
-    public LeaveService(LeaveRequestRepository leaveRequestRepository) {
+    public LeaveService(LeaveRequestRepository leaveRequestRepository,
+                        LeaveAllocationRepository leaveAllocationRepository) {
         this.leaveRequestRepository = leaveRequestRepository;
+        this.leaveAllocationRepository = leaveAllocationRepository;
     }
 
     /**
@@ -78,6 +84,28 @@ public class LeaveService {
     /** GET /api/leave (HR) */
     public List<LeaveRequest> findAll() {
         return leaveRequestRepository.findAll();
+    }
+
+    public Map<String, Object> getBalance(String employeeId) {
+        Map<String, Object> balance = new HashMap<>();
+        Map<String, Double> used = new HashMap<>();
+        for (LeaveRequest.LeaveType type : LeaveRequest.LeaveType.values()) {
+            leaveAllocationRepository.findByEmployeeIdAndLeaveType(employeeId, type).ifPresent(allocation -> {
+                String key = type.name().toLowerCase();
+                balance.put(key, allocation.getTotalDays());
+                used.put(key, allocation.getUsedDays());
+            });
+        }
+        balance.put("used", used);
+        return balance;
+    }
+
+    public void cancel(Long id, String employeeId) {
+        LeaveRequest request = getOrThrow(id);
+        if (!employeeId.equals(request.getEmployeeId()) || request.getStatus() != LeaveRequest.LeaveStatus.PENDING) {
+            throw new IllegalStateException("Only your pending leave requests can be cancelled");
+        }
+        leaveRequestRepository.delete(request);
     }
 
     /** PUT /api/leave/{id}/approve (HR) */

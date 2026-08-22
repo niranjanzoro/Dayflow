@@ -29,6 +29,7 @@ axiosClient.interceptors.request.use((config) => {
 axiosClient.interceptors.response.use(
   (res) => res,
   (error) => {
+    if (error?.response?.data?.message) error.message = error.response.data.message;
     if (error?.response?.status === 401) {
       localStorage.removeItem('dayflow_auth');
       if (window.location.pathname !== '/login') {

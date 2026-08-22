@@ -4,8 +4,15 @@ import { ROLES, EMPLOYEE_STATUS } from '../utils/roles';
 
 function sanitize(user) {
   if (!user) return user;
-  const { password, ...safe } = user;
+  const safe = { ...user };
+  delete safe.password;
   return safe;
+}
+
+function normalize(user) {
+  if (!user) return user;
+  return sanitize({ ...user, designation: user.designation ?? user.jobTitle, joinDate: user.joinDate ?? user.joiningDate,
+    employeeCode: user.employeeCode ?? user.employeeId });
 }
 
 export async function getAllEmployees() {
@@ -15,7 +22,7 @@ export async function getAllEmployees() {
     return db.users.map(sanitize).sort((a, b) => a.name.localeCompare(b.name));
   }
   const { data } = await axiosClient.get('/employees');
-  return data;
+  return data.map(normalize);
 }
 
 export async function getEmployeeById(id) {
@@ -27,7 +34,7 @@ export async function getEmployeeById(id) {
     return sanitize(user);
   }
   const { data } = await axiosClient.get(`/employees/${id}`);
-  return data;
+  return normalize(data);
 }
 
 export async function updateProfile(id, updates) {
@@ -40,8 +47,12 @@ export async function updateProfile(id, updates) {
     saveDB(db);
     return sanitize(db.users[idx]);
   }
-  const { data } = await axiosClient.put(`/employees/${id}`, updates);
-  return data;
+  const isSelf = String(id) === String(JSON.parse(localStorage.getItem('dayflow_auth') || '{}').user?.id)
+    || String(id) === String(JSON.parse(localStorage.getItem('dayflow_auth') || '{}').user?.employeeId);
+  const payload = isSelf ? { phone: updates.phone, address: updates.address, profilePicture: updates.profilePicture }
+    : { ...updates, jobTitle: updates.designation };
+  const { data } = await axiosClient.put(isSelf ? '/employees/me' : `/employees/${id}`, payload);
+  return normalize(data);
 }
 
 // --- HR / Admin only actions -------------------------------------------------
@@ -57,7 +68,7 @@ export async function approveEmployee(id) {
     return sanitize(db.users[idx]);
   }
   const { data } = await axiosClient.post(`/employees/${id}/approve`);
-  return data;
+  return normalize(data);
 }
 
 export async function setEmployeeStatus(id, status) {
@@ -71,7 +82,7 @@ export async function setEmployeeStatus(id, status) {
     return sanitize(db.users[idx]);
   }
   const { data } = await axiosClient.patch(`/employees/${id}/status`, { status });
-  return data;
+  return normalize(data);
 }
 
 // Promote an active employee to HR/Admin. Only HR should ever be able to
@@ -87,7 +98,7 @@ export async function promoteToHR(id) {
     return sanitize(db.users[idx]);
   }
   const { data } = await axiosClient.post(`/employees/${id}/promote-to-hr`);
-  return data;
+  return normalize(data);
 }
 
 export async function demoteToEmployee(id) {
@@ -101,5 +112,5 @@ export async function demoteToEmployee(id) {
     return sanitize(db.users[idx]);
   }
   const { data } = await axiosClient.post(`/employees/${id}/demote-to-employee`);
-  return data;
+  return normalize(data);
 }

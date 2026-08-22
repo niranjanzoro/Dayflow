@@ -117,3 +117,59 @@ src/
   support that — it just posts `{ email, password }` to `/auth/login`.
 - Responsive down to mobile: the sidebar collapses behind a hamburger menu
   under ~860px.
+
+
+cd "D:\DayFlow -Oodo\Dayflow\backend"
+mvn spring-boot:run
+
+
+
+
+cd "D:\DayFlow -Oodo\Dayflow\frontend"
+npm install
+npm run dev
+
+
+
+
+
+cd "D:\DayFlow -Oodo\Dayflow\frontend"
+npm run build
+npm run lint
+
+
+
+cd "D:\DayFlow -Oodo\Dayflow\backend"
+mvn clean test
+
+equisites
+
+Start MySQL service: MySQL80
+Java 17+
+Maven
+Node.js/npm
+Open two PowerShell terminals.
+
+Terminal 1: Backend
+
+
+Backend runs at:
+
+
+It uses MySQL database dayflow_hrms with the credentials configured in application.properties.
+
+Terminal 2: Frontend
+
+
+Frontend runs at:
+
+
+Open that URL in your browser.
+
+Build checks
+
+
+For backend:
+
+
+Do not run Maven from backend\src; the correct Maven project directory is backend.

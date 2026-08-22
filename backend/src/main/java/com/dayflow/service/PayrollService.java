@@ -41,16 +41,17 @@ public class PayrollService {
      * PUT /api/payroll/{id} (HR)
      * Applies HR-editable fields, then recomputes netSalary server-side.
      */
-    public Payroll update(Long id, Double basicSalary, Double allowances, Double deductions,
+    public Payroll update(Long id, Double basicSalary, Double hra, Double allowances, Double deductions,
                            String payPeriod, Payroll.PayrollStatus status) {
         validate(basicSalary, allowances, deductions, payPeriod);
         Payroll payroll = getOrThrow(id);
         payroll.setBasicSalary(basicSalary);
+        payroll.setHra(hra);
         payroll.setAllowances(allowances);
         payroll.setDeductions(deductions);
         payroll.setPayPeriod(payPeriod);
         payroll.setStatus(status);
-        payroll.setNetSalary(computeNetSalary(basicSalary, allowances, deductions));
+        payroll.setNetSalary(computeNetSalary(basicSalary, hra, allowances, deductions));
         return payrollRepository.save(payroll);
     }
 
@@ -70,9 +71,30 @@ public class PayrollService {
         }
     }
 
-    private double computeNetSalary(Double basicSalary, Double allowances, Double deductions) {
+    public Payroll create(String employeeId, String month, Integer year, Double basic, Double hra,
+                          Double allowances, Double deductions) {
+        Payroll payroll = new Payroll();
+        payroll.setEmployeeId(employeeId);
+        payroll.setBasicSalary(basic);
+        payroll.setHra(hra);
+        payroll.setAllowances(allowances);
+        payroll.setDeductions(deductions);
+        payroll.setPayPeriod(String.format("%04d-%02d", year,
+                java.time.Month.valueOf(month.toUpperCase()).getValue()));
+        payroll.setStatus(Payroll.PayrollStatus.PENDING);
+        payroll.setNetSalary(computeNetSalary(basic, hra, allowances, deductions));
+        return payrollRepository.save(payroll);
+    }
+
+    public Payroll markPaid(Long id) {
+        Payroll payroll = getOrThrow(id);
+        payroll.setStatus(Payroll.PayrollStatus.PAID);
+        return payrollRepository.save(payroll);
+    }
+
+    private double computeNetSalary(Double basicSalary, Double hra, Double allowances, Double deductions) {
         double basic = basicSalary != null ? basicSalary : 0.0;
-        double allow = allowances != null ? allowances : 0.0;
+        double allow = (hra != null ? hra : 0.0) + (allowances != null ? allowances : 0.0);
         double deduct = deductions != null ? deductions : 0.0;
         return basic + allow - deduct;
     }
