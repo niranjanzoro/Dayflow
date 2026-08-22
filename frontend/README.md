@@ -117,3 +117,28 @@ src/
   support that — it just posts `{ email, password }` to `/auth/login`.
 - Responsive down to mobile: the sidebar collapses behind a hamburger menu
   under ~860px.
+
+
+cd "D:\DayFlow -Oodo\Dayflow\backend"
+mvn spring-boot:run
+
+
+
+
+cd "D:\DayFlow -Oodo\Dayflow\frontend"
+npm install
+npm run dev
+
+
+
+
+
+cd "D:\DayFlow -Oodo\Dayflow\frontend"
+npm run build
+npm run lint
+
+
+
+cd "D:\DayFlow -Oodo\Dayflow\backend"
+mvn clean test
+ 

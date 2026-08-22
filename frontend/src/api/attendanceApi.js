@@ -24,7 +24,7 @@ export async function getTodayRecord(employeeId) {
     return db.attendance.find((a) => a.employeeId === employeeId && a.date === todayStr()) || null;
   }
   const { data } = await axiosClient.get(`/attendance/me/today`);
-  return data;
+  return data || null;
 }
 
 export async function clockIn(employeeId) {
@@ -71,6 +71,6 @@ export async function getAllAttendance() {
     const db = loadDB();
     return db.attendance.slice().sort((a, b) => b.date.localeCompare(a.date));
   }
-  const { data } = await axiosClient.get('/attendance');
+  const { data } = await axiosClient.get('/attendance', { params: { date: todayStr() } });
   return data;
 }

@@ -28,14 +28,14 @@ public class AttendanceController {
     private AttendanceService attendanceService;
 
     // POST /api/attendance/checkin
-    @PostMapping("/checkin")
+    @PostMapping({"/checkin", "/clock-in"})
     public ResponseEntity<Attendance> checkIn(Authentication authentication) {
         String employeeId = authentication.getName();
         return ResponseEntity.ok(attendanceService.checkIn(employeeId));
     }
 
     // POST /api/attendance/checkout
-    @PostMapping("/checkout")
+    @PostMapping({"/checkout", "/clock-out"})
     public ResponseEntity<Attendance> checkOut(Authentication authentication) {
         String employeeId = authentication.getName();
         return ResponseEntity.ok(attendanceService.checkOut(employeeId));
@@ -52,11 +52,19 @@ public class AttendanceController {
         return ResponseEntity.ok(attendanceService.getMyAttendance(employeeId, start, end));
     }
 
+    @GetMapping("/me/today")
+    public ResponseEntity<Attendance> getToday(Authentication authentication) {
+        return attendanceService.getMyAttendance(authentication.getName(), LocalDate.now(), LocalDate.now())
+                .stream().findFirst().map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
     // GET /api/attendance?date=2026-08-22 (HR only — enforced by SecurityConfig)
     @GetMapping
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('HR')")
     public ResponseEntity<List<Attendance>> getAttendanceByDate(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
-        return ResponseEntity.ok(attendanceService.getAttendanceByDate(date));
+        return ResponseEntity.ok(attendanceService.getAttendanceByDate(date == null ? LocalDate.now() : date));
     }
 }

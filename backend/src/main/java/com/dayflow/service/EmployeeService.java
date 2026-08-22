@@ -1,6 +1,7 @@
 package com.dayflow.service;
 
 import com.dayflow.model.Employee;
+import com.dayflow.model.Role;
 import com.dayflow.repository.EmployeeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,23 @@ public class EmployeeService {
 
     public List<Employee> getAllEmployees() {
         return employeeRepository.findAll();
+    }
+
+    public Employee getEmployee(Long id) {
+        return employeeRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Employee not found: id=" + id));
+    }
+
+    public Employee setStatus(Long id, String status) {
+        Employee employee = getEmployee(id);
+        employee.setStatus(status);
+        return employeeRepository.save(employee);
+    }
+
+    public Employee setRole(Long id, Role role) {
+        Employee employee = getEmployee(id);
+        employee.setRole(role);
+        return employeeRepository.save(employee);
     }
 
     // HR can edit all fields except password (§4.1)

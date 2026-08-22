@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Mail, Lock, Phone, Building2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { verifyEmail } from '../api/authApi';
 import { AuthVisual } from './Login';
 
 const initialForm = {
@@ -17,6 +18,8 @@ export default function SignUp() {
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verification, setVerification] = useState(false);
 
   const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
@@ -40,7 +43,7 @@ export default function SignUp() {
     if (!validate()) return;
     setSubmitting(true);
     try {
-      await signup({
+      const result = await signup({
         name: form.name.trim(),
         email: form.email.trim(),
         password: form.password,
@@ -48,12 +51,26 @@ export default function SignUp() {
         department: form.department.trim(),
         designation: 'Employee',
       });
+      setVerificationCode(result?.verificationCode || '');
       setSuccess(true);
-      setTimeout(() => navigate('/login'), 2400);
     } catch (err) {
       setFormError(err.message || 'Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const verify = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    setVerification(true);
+    try {
+      await verifyEmail(form.email.trim(), verificationCode);
+      setTimeout(() => navigate('/login'), 1000);
+    } catch (err) {
+      setFormError(err.message || 'Verification failed.');
+    } finally {
+      setVerification(false);
     }
   };
 
@@ -75,7 +92,7 @@ export default function SignUp() {
           {success && (
             <div className="form-success-banner">
               <CheckCircle2 size={16} />
-              Account created! It's pending HR approval - redirecting to sign in…
+              Account created. Enter the verification code to continue.
             </div>
           )}
 
@@ -144,6 +161,19 @@ export default function SignUp() {
 
               <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
                 {submitting ? 'Creating account…' : 'Create account'}
+              </button>
+            </form>
+          )}
+
+          {success && (
+            <form onSubmit={verify} noValidate>
+              <div className="field">
+                <label htmlFor="verificationCode">Email verification code</label>
+                <input id="verificationCode" className="input" value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)} placeholder="6-digit code" />
+              </div>
+              <button type="submit" className="btn btn-primary btn-block" disabled={verification}>
+                {verification ? 'Verifying…' : 'Verify email'}
               </button>
             </form>
           )}

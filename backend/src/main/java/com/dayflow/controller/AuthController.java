@@ -7,11 +7,14 @@ import com.dayflow.security.JwtUtil;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Auth endpoints - owned by M2.
@@ -36,28 +39,37 @@ public class AuthController {
         this.jwtUtil = jwtUtil;
     }
 
-    @PostMapping("/register")
+        @PostMapping({"/register", "/signup"})
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
+                String employeeId = req.employeeId() == null || req.employeeId().isBlank()
+                                ? generateEmployeeId() : req.employeeId();
         if (employeeRepository.existsByEmail(req.email())) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(new ErrorResponse("Email already registered"));
         }
-        if (employeeRepository.existsByEmployeeId(req.employeeId())) {
+        if (employeeRepository.existsByEmployeeId(employeeId)) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(new ErrorResponse("Employee ID already in use"));
         }
 
         Employee employee = new Employee();
-        employee.setEmployeeId(req.employeeId());
+        employee.setEmployeeId(employeeId);
         employee.setName(req.name());
         employee.setEmail(req.email());
         employee.setPassword(passwordEncoder.encode(req.password()));
-        employee.setRole(req.role());
+        employee.setRole(Role.EMPLOYEE);
+        employee.setStatus("PENDING");
+        employee.setEmailVerified(false);
+        employee.setVerificationCode(String.format("%06d", ThreadLocalRandom.current().nextInt(1_000_000)));
+        employee.setVerificationExpiresAt(LocalDateTime.now().plusMinutes(15));
+        employee.setJoiningDate(LocalDate.now());
+        employee.setJobTitle("Employee");
 
         Employee saved = employeeRepository.save(employee);
 
         // password excluded automatically via @JsonIgnore on the entity
-        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new RegistrationResponse(
+                saved.getEmail(), saved.getVerificationCode()));
     }
 
     @PostMapping("/login")
@@ -68,6 +80,14 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ErrorResponse("Invalid email or password"));
         }
+        if (!employee.isEmailVerified()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ErrorResponse("Please verify your email before signing in"));
+        }
+        if ("DEACTIVATED".equals(employee.getStatus())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ErrorResponse("Your account has been deactivated"));
+        }
 
         String token = jwtUtil.generateToken(
                 employee.getEmail(),
@@ -76,22 +96,46 @@ public class AuthController {
                 employee.getName()
         );
 
-        return ResponseEntity.ok(new LoginResponse(
-                token,
-                employee.getRole().name(),
-                employee.getEmployeeId(),
-                employee.getName()
-        ));
+                return ResponseEntity.ok(new LoginResponse(token, new UserResponse(
+                                employee.getId(), employee.getEmployeeId(), employee.getName(), employee.getEmail(),
+                                employee.getRole().name(), employee.getStatus(), employee.getPhone(),
+                                employee.getDepartment(), employee.getJobTitle(), employee.getJoiningDate()
+                )));
     }
+
+        @PostMapping("/verify-email")
+        public ResponseEntity<?> verifyEmail(@Valid @RequestBody VerifyEmailRequest req) {
+                Employee employee = employeeRepository.findByEmail(req.email()).orElse(null);
+                if (employee == null || employee.isEmailVerified()
+                                || !req.code().equals(employee.getVerificationCode())
+                                || employee.getVerificationExpiresAt() == null
+                                || employee.getVerificationExpiresAt().isBefore(LocalDateTime.now())) {
+                        return ResponseEntity.badRequest().body(new ErrorResponse("Invalid or expired verification code"));
+                }
+                employee.setEmailVerified(true);
+                employee.setStatus("ACTIVE");
+                employee.setVerificationCode(null);
+                employee.setVerificationExpiresAt(null);
+                employeeRepository.save(employee);
+                return ResponseEntity.ok(new MessageResponse("Email verified successfully"));
+        }
+
+        private String generateEmployeeId() {
+                String employeeId;
+                do {
+                        employeeId = "EMP" + ThreadLocalRandom.current().nextInt(100000, 999999);
+                } while (employeeRepository.existsByEmployeeId(employeeId));
+                return employeeId;
+        }
 
     // ---- Request/response shapes (§4.5) ----
 
     public record RegisterRequest(
-            @NotBlank String employeeId,
+            String employeeId,
             @NotBlank String name,
             @Email @NotBlank String email,
             @NotBlank String password,
-            @NotNull Role role
+            Role role
     ) {}
 
     public record LoginRequest(
@@ -99,12 +143,15 @@ public class AuthController {
             @NotBlank String password
     ) {}
 
-    public record LoginResponse(
-            String token,
-            String role,
-            String employeeId,
-            String name
-    ) {}
+    public record LoginResponse(String token, UserResponse user) {}
+
+    public record UserResponse(Long id, String employeeId, String name, String email, String role,
+                               String status, String phone, String department, String designation,
+                               LocalDate joiningDate) {}
+
+    public record RegistrationResponse(String email, String verificationCode) {}
+    public record VerifyEmailRequest(@Email @NotBlank String email, @NotBlank String code) {}
+    public record MessageResponse(String message) {}
 
     public record ErrorResponse(String message) {}
 }

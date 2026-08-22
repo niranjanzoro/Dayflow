@@ -1,7 +1,7 @@
 package com.dayflow.service;
 
 import com.dayflow.model.Attendance;
-import com.dayflow.model.AttendanceStatus;
+import com.dayflow.model.Attendance.AttendanceStatus;
 import com.dayflow.repository.AttendanceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -69,9 +69,9 @@ public class AttendanceService {
 
     public List<Attendance> getMyAttendance(String employeeId, LocalDate start, LocalDate end) {
         if (start != null && end != null) {
-            return attendanceRepository.findByEmployeeIdAndDateBetween(employeeId, start, end);
+            return attendanceRepository.findByEmployeeIdAndDateBetweenOrderByDateDesc(employeeId, start, end);
         }
-        return attendanceRepository.findByEmployeeId(employeeId);
+        return attendanceRepository.findByEmployeeIdOrderByDateDesc(employeeId);
     }
 
     public List<Attendance> getAttendanceByDate(LocalDate date) {

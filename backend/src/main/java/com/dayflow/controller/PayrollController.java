@@ -37,9 +37,16 @@ public class PayrollController {
         return payroll.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @PostMapping
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<Payroll> create(@RequestBody CreatePayrollRequest body) {
+        return ResponseEntity.ok(payrollService.create(body.employeeId(), body.month(), body.year(), body.basic(),
+                body.hra(), body.allowances(), body.deductions()));
+    }
+
     /** GET /api/payroll — HR views all payroll records */
     @GetMapping
-    @PreAuthorize("hasAuthority('HR')")
+    @PreAuthorize("hasRole('HR')")
     public ResponseEntity<List<Payroll>> getAll() {
         return ResponseEntity.ok(payrollService.findAll());
     }
@@ -49,18 +56,28 @@ public class PayrollController {
     @PreAuthorize("hasAuthority('HR')")
     public ResponseEntity<Payroll> update(@PathVariable Long id, @RequestBody UpdatePayrollRequest body) {
         Payroll updated = payrollService.update(
-                id, body.basicSalary(), body.allowances(), body.deductions(),
+                id, body.basicSalary(), body.hra(), body.allowances(), body.deductions(),
                 body.payPeriod(), body.status());
         return ResponseEntity.ok(updated);
+    }
+
+    @PatchMapping("/{id}/mark-paid")
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<Payroll> markPaid(@PathVariable Long id) {
+        return ResponseEntity.ok(payrollService.markPaid(id));
     }
 
     // --- Request body shape (matches §4.4 exactly) ---
 
     public record UpdatePayrollRequest(
             Double basicSalary,
+            Double hra,
             Double allowances,
             Double deductions,
             String payPeriod,
             Payroll.PayrollStatus status) {
     }
+
+    public record CreatePayrollRequest(String employeeId, String month, Integer year, Double basic,
+                                       Double hra, Double allowances, Double deductions) {}
 }

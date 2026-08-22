@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Employee entity - owned by M2.
@@ -61,4 +62,13 @@ public class Employee {
 
     // ISO format, e.g. "2026-08-22"
     private LocalDate joiningDate;
+
+    @Column(nullable = false)
+    private String status = "ACTIVE";
+
+    @Column(nullable = false)
+    private boolean emailVerified = true;
+
+    private String verificationCode;
+    private LocalDateTime verificationExpiresAt;
 }

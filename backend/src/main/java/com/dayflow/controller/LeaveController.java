@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Owned by M3.
@@ -48,16 +49,21 @@ public class LeaveController {
         return ResponseEntity.ok(leaveService.findByEmployeeId(employeeId));
     }
 
+    @GetMapping("/me/balance")
+    public ResponseEntity<Map<String, Object>> getBalance(Authentication authentication) {
+        return ResponseEntity.ok(leaveService.getBalance(authentication.getName()));
+    }
+
     /** GET /api/leave — HR views all leave requests */
     @GetMapping
-    @PreAuthorize("hasAuthority('HR')")
+    @PreAuthorize("hasRole('HR')")
     public ResponseEntity<List<LeaveRequest>> getAll() {
         return ResponseEntity.ok(leaveService.findAll());
     }
 
     /** PUT /api/leave/{id}/approve — HR approves */
     @PutMapping("/{id}/approve")
-    @PreAuthorize("hasAuthority('HR')")
+    @PreAuthorize("hasRole('HR')")
     public ResponseEntity<LeaveRequest> approve(@PathVariable Long id,
                                                  @RequestBody AdminCommentRequest body,
                                                  Authentication authentication) {
@@ -67,12 +73,28 @@ public class LeaveController {
 
     /** PUT /api/leave/{id}/reject — HR rejects */
     @PutMapping("/{id}/reject")
-    @PreAuthorize("hasAuthority('HR')")
+    @PreAuthorize("hasRole('HR')")
     public ResponseEntity<LeaveRequest> reject(@PathVariable Long id,
                                                 @RequestBody AdminCommentRequest body,
                                                 Authentication authentication) {
         String hrEmployeeId = authentication.getName();
         return ResponseEntity.ok(leaveService.reject(id, hrEmployeeId, body.adminComment()));
+    }
+
+    @PatchMapping("/{id}/review")
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<LeaveRequest> review(@PathVariable Long id,
+                                                @RequestBody ReviewRequest body,
+                                                Authentication authentication) {
+        return ResponseEntity.ok("APPROVED".equals(body.status())
+                ? leaveService.approve(id, authentication.getName(), body.adminComment())
+                : leaveService.reject(id, authentication.getName(), body.adminComment()));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> cancel(@PathVariable Long id, Authentication authentication) {
+        leaveService.cancel(id, authentication.getName());
+        return ResponseEntity.noContent().build();
     }
 
     // --- Request body shapes (match §4.3 exactly) ---
@@ -85,5 +107,8 @@ public class LeaveController {
     }
 
     public record AdminCommentRequest(String adminComment) {
+    }
+
+    public record ReviewRequest(String status, String adminComment) {
     }
 }

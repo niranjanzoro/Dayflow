@@ -18,6 +18,8 @@ public class Payroll {
 
     private Double allowances = 0.0;
 
+    private Double hra = 0.0;
+
     private Double deductions = 0.0;
 
     @Column(nullable = false)
@@ -60,6 +62,9 @@ public class Payroll {
     public Double getAllowances() {
         return allowances;
     }
+
+    public Double getHra() { return hra; }
+    public void setHra(Double hra) { this.hra = hra; }
 
     public void setAllowances(Double allowances) {
         this.allowances = allowances;

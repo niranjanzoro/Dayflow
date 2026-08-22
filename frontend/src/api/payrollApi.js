@@ -10,7 +10,7 @@ export async function getMyPayroll(employeeId) {
       .sort((a, b) => (b.year - a.year) || b.month.localeCompare(a.month));
   }
   const { data } = await axiosClient.get('/payroll/me');
-  return data;
+  return data ? [normalize(data)] : [];
 }
 
 // --- HR / Admin -----------------------------------------------------------
@@ -22,7 +22,7 @@ export async function getAllPayroll() {
     return db.payroll.slice().sort((a, b) => (b.year - a.year) || b.month.localeCompare(a.month));
   }
   const { data } = await axiosClient.get('/payroll');
-  return data;
+  return data.map(normalize);
 }
 
 export async function generatePayroll({ employeeId, month, year, basic, hra, allowances, deductions }) {
@@ -48,7 +48,7 @@ export async function generatePayroll({ employeeId, month, year, basic, hra, all
     return record;
   }
   const { data } = await axiosClient.post('/payroll', { employeeId, month, year, basic, hra, allowances, deductions });
-  return data;
+  return normalize(data);
 }
 
 export async function markPayrollPaid(id) {
@@ -63,5 +63,13 @@ export async function markPayrollPaid(id) {
     return db.payroll[idx];
   }
   const { data } = await axiosClient.patch(`/payroll/${id}/mark-paid`);
-  return data;
+  return normalize(data);
+}
+
+function normalize(payroll) {
+  if (!payroll) return payroll;
+  const [year, month] = (payroll.payPeriod || '').split('-');
+  return { ...payroll, basic: payroll.basic ?? payroll.basicSalary, hra: payroll.hra || 0,
+    netPay: payroll.netPay ?? payroll.netSalary, month: payroll.month || new Date(`${year}-${month || '01'}-01`).toLocaleString('en-US', { month: 'long' }),
+    year: payroll.year || Number(year) };
 }
