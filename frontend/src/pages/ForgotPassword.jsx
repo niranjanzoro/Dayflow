@@ -37,7 +37,7 @@ export default function ForgotPassword() {
       />
       <div className="auth-panel">
         <div className="auth-form-wrap">
-          <Link to="/login" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, marginBottom: 18 }}>
+          <Link to="/login" className="back-link">
             <ArrowLeft size={14} /> Back to sign in
           </Link>
           <h2>Reset your password</h2>

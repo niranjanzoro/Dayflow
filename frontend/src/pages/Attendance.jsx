@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { CalendarX2, LogIn, LogOut as LogOutIcon, Search } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import * as attendanceApi from '../api/attendanceApi';
 import * as employeeApi from '../api/employeeApi';
 
@@ -12,6 +13,7 @@ function StatusBadge({ status }) {
 
 export default function Attendance() {
   const { user, isHR } = useAuth();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState([]);
   const [today, setToday] = useState(null);
@@ -61,9 +63,16 @@ export default function Attendance() {
   const handleClock = async () => {
     setClocking(true);
     try {
-      if (!today) await attendanceApi.clockIn(user.id);
-      else if (!today.checkOut) await attendanceApi.clockOut(user.id);
+      if (!today) {
+        await attendanceApi.clockIn(user.id);
+        toast.success('Clocked in. Have a great day!');
+      } else if (!today.checkOut) {
+        await attendanceApi.clockOut(user.id);
+        toast.success('Clocked out. See you tomorrow!');
+      }
       await load();
+    } catch (err) {
+      toast.error(err.message || 'Something went wrong.');
     } finally {
       setClocking(false);
     }
@@ -86,7 +95,7 @@ export default function Attendance() {
           <p className="sub">{isHR ? 'Organization-wide check-in / check-out records.' : 'Your daily check-in and check-out history.'}</p>
         </div>
         {isHR && (
-          <div className="input-wrap" style={{ maxWidth: 260 }}>
+          <div className="input-wrap search-bar">
             <Search size={15} />
             <input className="input" placeholder="Search employee…" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
@@ -94,16 +103,16 @@ export default function Attendance() {
       </div>
 
       {!isHR && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-            <div style={{ display: 'flex', gap: 28 }}>
+        <div className="card mb-xl">
+          <div className="row-between wrap gap-16">
+            <div className="row gap-28">
               <div>
                 <div className="stat-label">Today's check in</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--primary)' }}>{today?.checkIn || '--:--'}</div>
+                <div className="stat-mono">{today?.checkIn || '--:--'}</div>
               </div>
               <div>
                 <div className="stat-label">Today's check out</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--primary)' }}>{today?.checkOut || '--:--'}</div>
+                <div className="stat-mono">{today?.checkOut || '--:--'}</div>
               </div>
             </div>
             <button
@@ -132,11 +141,11 @@ export default function Attendance() {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={isHR ? 5 : 4} style={{ textAlign: 'center', padding: 30 }}><div className="spinner" style={{ margin: '0 auto' }} /></td></tr>
+                <tr><td colSpan={isHR ? 5 : 4} className="cell-center"><div className="spinner" /></td></tr>
               )}
               {!loading && filteredRecords.map((r) => (
                 <tr key={r.id}>
-                  {isHR && <td style={{ fontWeight: 600 }}>{employeeName(r.employeeId)}</td>}
+                  {isHR && <td className="fw-600">{employeeName(r.employeeId)}</td>}
                   <td className="mono">{r.date}</td>
                   <td className="mono">{r.checkIn || '--:--'}</td>
                   <td className="mono">{r.checkOut || '--:--'}</td>

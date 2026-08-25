@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Plus, X, Check, Ban, CalendarX2, AlertCircle } from 'lucide-react';
+import { Plus, Check, Ban, CalendarX2, AlertCircle } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
+import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import * as leaveApi from '../api/leaveApi';
 import * as employeeApi from '../api/employeeApi';
 import { LEAVE_STATUS } from '../utils/roles';
@@ -15,6 +17,7 @@ function StatusBadge({ status }) {
 
 export default function Leave() {
   const { user, isHR } = useAuth();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [leaves, setLeaves] = useState([]);
   const [balance, setBalance] = useState(null);
@@ -69,17 +72,20 @@ export default function Leave() {
     return leaves.filter((l) => l.status === filter);
   }, [leaves, filter, isHR]);
 
-  const review = async (id, status) => {
+  const review = async (leave, status) => {
     try {
-      await leaveApi.reviewLeave(id, status, user.name);
+      await leaveApi.reviewLeave(leave.id, status, user.name);
+      toast.success(`Leave ${status.toLowerCase()} for ${employeeName(leave.employeeId)}.`);
       await load();
     } catch (err) {
       setError(err.message);
+      toast.error(err.message || 'Could not update the request.');
     }
   };
 
   const cancel = async (id) => {
     await leaveApi.cancelLeave(id);
+    toast.info('Leave request cancelled.');
     await load();
   };
 
@@ -100,7 +106,7 @@ export default function Leave() {
       {error && <div className="form-error-banner"><AlertCircle size={16} />{error}</div>}
 
       {!isHR && balance && (
-        <div className="grid grid-3" style={{ marginBottom: 20 }}>
+        <div className="grid grid-3 mb-xl">
           <BalanceCard label="Casual Leave" total={balance.casual} used={balance.used?.casual || 0} />
           <BalanceCard label="Sick Leave" total={balance.sick} used={balance.used?.sick || 0} />
           <BalanceCard label="Earned Leave" total={balance.earned} used={balance.used?.earned || 0} />
@@ -133,23 +139,23 @@ export default function Leave() {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: 30 }}><div className="spinner" style={{ margin: '0 auto' }} /></td></tr>
+                <tr><td colSpan={7} className="cell-center"><div className="spinner" /></td></tr>
               )}
               {!loading && visibleLeaves.map((l) => (
                 <tr key={l.id}>
-                  {isHR && <td style={{ fontWeight: 600 }}>{employeeName(l.employeeId)}</td>}
+                  {isHR && <td className="fw-600">{employeeName(l.employeeId)}</td>}
                   <td>{l.type}</td>
                   <td className="mono">{l.fromDate}</td>
                   <td className="mono">{l.toDate}</td>
-                  <td style={{ maxWidth: 220 }}>{l.reason}</td>
+                  <td className="max-w-220">{l.reason}</td>
                   <td><StatusBadge status={l.status} /></td>
                   <td>
                     {isHR && l.status === LEAVE_STATUS.PENDING && (
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button className="btn btn-sm btn-primary" onClick={() => review(l.id, LEAVE_STATUS.APPROVED)}>
+                      <div className="row gap-6">
+                        <button className="btn btn-sm btn-primary" onClick={() => review(l, LEAVE_STATUS.APPROVED)}>
                           <Check size={13} /> Approve
                         </button>
-                        <button className="btn btn-sm btn-danger" onClick={() => review(l.id, LEAVE_STATUS.REJECTED)}>
+                        <button className="btn btn-sm btn-danger" onClick={() => review(l, LEAVE_STATUS.REJECTED)}>
                           <Ban size={13} /> Reject
                         </button>
                       </div>
@@ -177,6 +183,7 @@ export default function Leave() {
           onSubmit={async (payload) => {
             await leaveApi.applyLeave(user.id, payload);
             setShowForm(false);
+            toast.success('Leave request submitted for approval.');
             await load();
           }}
         />
@@ -191,9 +198,9 @@ function BalanceCard({ label, total, used }) {
   return (
     <div className="card">
       <div className="card-title">{label}</div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '8px 0' }}>
-        <span style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: 'var(--primary)' }}>{left}</span>
-        <span style={{ fontSize: 12.5, color: 'var(--ink-faint)' }}>of {total} days left</span>
+      <div className="row align-baseline gap-6 mt-sm mb-sm">
+        <span className="balance-num">{left}</span>
+        <span className="text-xs">of {total} days left</span>
       </div>
       <div className="progress-track"><div className="progress-fill" style={{ width: `${pct}%` }} /></div>
     </div>
@@ -224,14 +231,8 @@ function ApplyLeaveModal({ onClose, onSubmit }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <h3 style={{ fontSize: 17 }}>Apply for leave</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-faint)' }}><X size={18} /></button>
-        </div>
-
-        {error && <div className="form-error-banner"><AlertCircle size={16} />{error}</div>}
+    <Modal title="Apply for leave" onClose={onClose}>
+      {error && <div className="form-error-banner"><AlertCircle size={16} />{error}</div>}
 
         <form onSubmit={submit}>
           <div className="field">
@@ -240,7 +241,7 @@ function ApplyLeaveModal({ onClose, onSubmit }) {
               {LEAVE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="field-row">
             <div className="field">
               <label>From</label>
               <input type="date" name="fromDate" className="input" value={form.fromDate} onChange={onChange} />
@@ -259,7 +260,6 @@ function ApplyLeaveModal({ onClose, onSubmit }) {
             <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Submitting…' : 'Submit request'}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

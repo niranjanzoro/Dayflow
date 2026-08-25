@@ -1,11 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Clock, CalendarCheck, CalendarClock, Wallet, LogIn, LogOut as LogOutIcon, ArrowRight,
 } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import StatCard from '../components/StatCard';
+import { StatCardSkeleton, ListRowsSkeleton } from '../components/Skeleton';
+import { BarChart, HBarList } from '../components/Charts';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import * as attendanceApi from '../api/attendanceApi';
 import * as leaveApi from '../api/leaveApi';
 import * as payrollApi from '../api/payrollApi';
@@ -20,6 +23,7 @@ function greeting() {
 
 export default function EmployeeDashboard() {
   const { user } = useAuth();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [today, setToday] = useState(null);
   const [balance, setBalance] = useState(null);
@@ -30,7 +34,7 @@ export default function EmployeeDashboard() {
 
   useEffect(() => {
     let mounted = true;
-    
+
     (async () => {
       setLoading(true);
       const [t, bal, lv, att, pay] = await Promise.all([
@@ -49,7 +53,7 @@ export default function EmployeeDashboard() {
         setLoading(false);
       }
     })();
-    
+
     return () => { mounted = false; };
   }, [user.id]);
 
@@ -73,9 +77,16 @@ export default function EmployeeDashboard() {
   const handleClock = async () => {
     setClocking(true);
     try {
-      if (!today) await attendanceApi.clockIn(user.id);
-      else if (!today.checkOut) await attendanceApi.clockOut(user.id);
+      if (!today) {
+        await attendanceApi.clockIn(user.id);
+        toast.success('Clocked in. Have a great day!');
+      } else if (!today.checkOut) {
+        await attendanceApi.clockOut(user.id);
+        toast.success('Clocked out. See you tomorrow!');
+      }
       await load();
+    } catch (err) {
+      toast.error(err.message || 'Something went wrong.');
     } finally {
       setClocking(false);
     }
@@ -87,6 +98,33 @@ export default function EmployeeDashboard() {
   const leaveLeft = balance ? (balance.casual - (balance.used?.casual || 0)) + (balance.sick - (balance.used?.sick || 0)) : 0;
   const latestPay = payroll[0];
 
+  const hoursData = useMemo(() => (
+    [...monthAttendance]
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+      .slice(-7)
+      .map((a) => {
+        let value = 0;
+        if (a.checkIn && a.checkOut) {
+          const [h1, m1] = a.checkIn.split(':').map(Number);
+          const [h2, m2] = a.checkOut.split(':').map(Number);
+          value = Math.round(Math.max((h2 * 60 + m2 - h1 * 60 - m1) / 60, 0) * 10) / 10;
+        }
+        return {
+          label: new Date(a.date).toLocaleDateString('en-US', { weekday: 'short' }),
+          value,
+        };
+      })
+  ), [monthAttendance]);
+
+  const leaveUsage = useMemo(() => {
+    if (!balance) return [];
+    return [
+      { label: 'Casual', value: balance.casual, hint: `${balance.casual - (balance.used?.casual || 0)} left` },
+      { label: 'Sick', value: balance.sick, hint: `${balance.sick - (balance.used?.sick || 0)} left` },
+      { label: 'Earned', value: balance.earned, hint: `${balance.earned - (balance.used?.earned || 0)} left` },
+    ];
+  }, [balance]);
+
   return (
     <DashboardLayout title="My Dashboard">
       <div className="page-head">
@@ -96,33 +134,39 @@ export default function EmployeeDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-4" style={{ marginBottom: 18 }}>
-        <StatCard icon={CalendarCheck} label="Present days (this month)" value={loading ? '—' : presentDays} />
-        <StatCard icon={CalendarClock} label="Leave days remaining" value={loading ? '—' : leaveLeft} accent />
-        <StatCard icon={Clock} label="Pending leave requests" value={loading ? '—' : pendingLeaves} />
-        <StatCard icon={Wallet} label="Last net pay" value={latestPay ? `$${latestPay.netPay.toLocaleString()}` : '—'} />
+      <div className="grid grid-4 mb-lg">
+        {loading ? (
+          <><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /></>
+        ) : (
+          <>
+            <StatCard icon={CalendarCheck} label="Present days (this month)" value={presentDays} />
+            <StatCard icon={CalendarClock} label="Leave days remaining" value={leaveLeft} accent />
+            <StatCard icon={Clock} label="Pending leave requests" value={pendingLeaves} />
+            <StatCard icon={Wallet} label="Last net pay" value={latestPay ? `$${latestPay.netPay.toLocaleString()}` : '—'} />
+          </>
+        )}
       </div>
 
       <div className="grid grid-2">
         <div className="card">
           <div className="card-title">Today's attendance</div>
-          <p style={{ fontSize: 13, marginBottom: 18 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          <p className="text-sm mb-lg">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
 
-          <div style={{ display: 'flex', gap: 24, marginBottom: 20 }}>
+          <div className="row gap-24 mb-xl">
             <div>
               <div className="stat-label">Check in</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--primary)' }}>{today?.checkIn || '--:--'}</div>
+              <div className="stat-mono">{today?.checkIn || '--:--'}</div>
             </div>
             <div>
               <div className="stat-label">Check out</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--primary)' }}>{today?.checkOut || '--:--'}</div>
+              <div className="stat-mono">{today?.checkOut || '--:--'}</div>
             </div>
           </div>
 
           <button
             className={`btn btn-block ${today && !today.checkOut ? 'btn-danger' : 'btn-accent'}`}
             onClick={handleClock}
-            disabled={clocking || (today && today.checkOut)}
+            disabled={clocking || loading || (today && today.checkOut)}
           >
             {today && !today.checkOut ? <LogOutIcon size={16} /> : <LogIn size={16} />}
             {clocking ? 'Please wait…' : today ? (today.checkOut ? 'Already clocked out today' : 'Clock out') : 'Clock in'}
@@ -131,15 +175,19 @@ export default function EmployeeDashboard() {
 
         <div className="card">
           <div className="card-title">Recent leave requests</div>
-          <p style={{ fontSize: 13, marginBottom: 14 }}>Your latest leave activity.</p>
+          <p className="text-sm mb-md">Your latest leave activity.</p>
 
-          {leaves.length === 0 && <div className="empty-state" style={{ padding: 24 }}>No leave requests yet.</div>}
+          {!loading && leaves.length === 0 && (
+            <div className="empty-inline">No leave requests yet.</div>
+          )}
 
-          {leaves.slice(0, 3).map((l) => (
-            <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-soft)' }}>
+          {loading && <ListRowsSkeleton rows={3} />}
+
+          {!loading && leaves.slice(0, 3).map((l) => (
+            <div key={l.id} className="list-row">
               <div>
-                <div style={{ fontSize: 13.5, fontWeight: 600 }}>{l.type}</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>{l.fromDate} → {l.toDate}</div>
+                <div className="text-body-sm">{l.type}</div>
+                <div className="text-xs">{l.fromDate} → {l.toDate}</div>
               </div>
               <span className={`badge badge-${l.status === 'APPROVED' ? 'success' : l.status === 'REJECTED' ? 'danger' : 'warning'}`}>
                 {l.status}
@@ -147,9 +195,33 @@ export default function EmployeeDashboard() {
             </div>
           ))}
 
-          <Link to="/employee/leave" className="btn btn-ghost btn-sm" style={{ marginTop: 14 }}>
+          <Link to="/employee/leave" className="btn btn-ghost btn-sm mt-md">
             Manage leave <ArrowRight size={14} />
           </Link>
+        </div>
+      </div>
+
+      <div className="grid grid-2 mt-lg">
+        <div className="card">
+          <div className="card-title">Hours this week</div>
+          <p className="text-sm mb-md">Daily hours from your check-in / check-out times.</p>
+          {loading ? (
+            <ListRowsSkeleton rows={2} />
+          ) : hoursData.length > 0 ? (
+            <BarChart data={hoursData} formatValue={(v) => `${v}h`} />
+          ) : (
+            <div className="empty-inline">No attendance data yet.</div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="card-title">Leave balance</div>
+          <p className="text-sm mb-md">Days remaining per leave type.</p>
+          {balance ? (
+            <HBarList data={leaveUsage} />
+          ) : (
+            <div className="empty-inline">No balance information yet.</div>
+          )}
         </div>
       </div>
     </DashboardLayout>

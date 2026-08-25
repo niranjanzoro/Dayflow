@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, X, Wallet, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, Wallet, AlertCircle, CheckCircle2 } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
+import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import * as payrollApi from '../api/payrollApi';
 import * as employeeApi from '../api/employeeApi';
 import { EMPLOYEE_STATUS } from '../utils/roles';
@@ -12,6 +14,7 @@ function StatusBadge({ status }) {
 
 export default function Payroll() {
   const { user, isHR } = useAuth();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [payroll, setPayroll] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -19,7 +22,7 @@ export default function Payroll() {
 
   useEffect(() => {
     let mounted = true;
-    
+
     (async () => {
       setLoading(true);
       if (isHR) {
@@ -37,7 +40,7 @@ export default function Payroll() {
         }
       }
     })();
-    
+
     return () => { mounted = false; };
   }, [isHR, user.id]);
 
@@ -56,9 +59,14 @@ export default function Payroll() {
 
   const employeeName = (id) => employees.find((e) => e.id === id)?.name || id;
 
-  const markPaid = async (id) => {
-    await payrollApi.markPayrollPaid(id);
-    await load();
+  const markPaid = async (record) => {
+    try {
+      await payrollApi.markPayrollPaid(record.id);
+      toast.success(`Payroll marked paid for ${employeeName(record.employeeId)}.`);
+      await load();
+    } catch (err) {
+      toast.error(err.message || 'Could not update payroll.');
+    }
   };
 
   return (
@@ -69,23 +77,19 @@ export default function Payroll() {
           <p className="sub">{isHR ? 'Generate and track salary payouts across the team.' : 'View your salary breakdown and payslip history.'}</p>
         </div>
         {isHR && (
-          <button className="btn btn-accent" onClick={() => setShowForm(true)}>
+          <button type="button" className="btn btn-accent" onClick={() => setShowForm(true)}>
             <Plus size={16} /> Generate payroll
           </button>
         )}
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: isHR ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16, marginBottom: 20 }}>
-        {!isHR && payroll.length > 0 && (
-          <div className="card" style={{ background: 'var(--primary)', color: '#fff', border: 'none' }}>
-            <div className="stat-label" style={{ color: 'rgba(255,255,255,0.6)' }}>Latest net pay ({payroll[0].month} {payroll[0].year})</div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, margin: '6px 0' }}>
-              ${payroll[0].netPay.toLocaleString()}
-            </div>
-            <StatusBadge status={payroll[0].status} />
-          </div>
-        )}
-      </div>
+      {!isHR && payroll.length > 0 && (
+        <div className="card pay-hero mb-xl">
+          <div className="pay-hero-label">Latest net pay ({payroll[0].month} {payroll[0].year})</div>
+          <div className="pay-hero-value">${payroll[0].netPay.toLocaleString()}</div>
+          <StatusBadge status={payroll[0].status} />
+        </div>
+      )}
 
       <div className="card">
         <div className="table-wrap">
@@ -105,22 +109,22 @@ export default function Payroll() {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: 30 }}><div className="spinner" style={{ margin: '0 auto' }} /></td></tr>
+                <tr><td colSpan={9} className="cell-center"><div className="spinner" /></td></tr>
               )}
               {!loading && payroll.map((p) => (
                 <tr key={p.id}>
-                  {isHR && <td style={{ fontWeight: 600 }}>{employeeName(p.employeeId)}</td>}
+                  {isHR && <td className="fw-600">{employeeName(p.employeeId)}</td>}
                   <td>{p.month} {p.year}</td>
                   <td className="mono">${p.basic.toLocaleString()}</td>
                   <td className="mono">${p.hra.toLocaleString()}</td>
                   <td className="mono">${p.allowances.toLocaleString()}</td>
                   <td className="mono">-${p.deductions.toLocaleString()}</td>
-                  <td className="mono" style={{ fontWeight: 700 }}>${p.netPay.toLocaleString()}</td>
+                  <td className="mono fw-700">${p.netPay.toLocaleString()}</td>
                   <td><StatusBadge status={p.status} /></td>
                   {isHR && (
                     <td>
                       {p.status !== 'PAID' && (
-                        <button className="btn btn-sm btn-primary" onClick={() => markPaid(p.id)}>Mark paid</button>
+                        <button type="button" className="btn btn-sm btn-primary" onClick={() => markPaid(p)}>Mark paid</button>
                       )}
                     </td>
                   )}
@@ -144,6 +148,7 @@ export default function Payroll() {
           onSubmit={async (payload) => {
             await payrollApi.generatePayroll(payload);
             setShowForm(false);
+            toast.success(`Payroll generated for ${employees.find((e) => e.id === payload.employeeId)?.name || 'employee'}.`);
             await load();
           }}
         />
@@ -188,15 +193,9 @@ function GeneratePayrollModal({ employees, onClose, onSubmit }) {
   const netPreview = Number(form.basic || 0) + Number(form.hra || 0) + Number(form.allowances || 0) - Number(form.deductions || 0);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <h3 style={{ fontSize: 17 }}>Generate payroll</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-faint)' }}><X size={18} /></button>
-        </div>
-
-        {error && <div className="form-error-banner"><AlertCircle size={16} />{error}</div>}
-        {success && <div className="form-success-banner"><CheckCircle2 size={16} />Payroll generated.</div>}
+    <Modal title="Generate payroll" onClose={onClose}>
+      {error && <div className="form-error-banner"><AlertCircle size={16} />{error}</div>}
+      {success && <div className="form-success-banner"><CheckCircle2 size={16} />Payroll generated.</div>}
 
         <form onSubmit={submit}>
           <div className="field">
@@ -205,7 +204,7 @@ function GeneratePayrollModal({ employees, onClose, onSubmit }) {
               {employees.map((e) => <option key={e.id} value={e.id}>{e.name} — {e.department}</option>)}
             </select>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="field-row">
             <div className="field">
               <label>Month</label>
               <select name="month" className="input" value={form.month} onChange={onChange}>
@@ -217,7 +216,7 @@ function GeneratePayrollModal({ employees, onClose, onSubmit }) {
               <input type="number" name="year" className="input" value={form.year} onChange={onChange} />
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="field-row">
             <div className="field">
               <label>Basic ($)</label>
               <input type="number" name="basic" className="input" value={form.basic} onChange={onChange} />
@@ -236,11 +235,9 @@ function GeneratePayrollModal({ employees, onClose, onSubmit }) {
             </div>
           </div>
 
-          <div className="card" style={{ background: 'var(--bg)', padding: 14, marginBottom: 4 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5 }}>
-              <span style={{ color: 'var(--ink-faint)' }}>Net pay preview</span>
-              <strong>${netPreview.toLocaleString()}</strong>
-            </div>
+          <div className="payslip-line mb-sm">
+            <span className="muted">Net pay preview</span>
+            <strong>${netPreview.toLocaleString()}</strong>
           </div>
 
           <div className="modal-actions">
@@ -248,7 +245,6 @@ function GeneratePayrollModal({ employees, onClose, onSubmit }) {
             <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Generating…' : 'Generate'}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -53,6 +53,11 @@ public class SecurityConfig {
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        // Liveness/readiness probes must be reachable without a token.
+                        .requestMatchers("/api/health/**").permitAll()
+                        // Boot's error dispatch - otherwise exception responses get
+                        // re-filtered and masked as 403 for anonymous callers.
+                        .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 // Security Headers

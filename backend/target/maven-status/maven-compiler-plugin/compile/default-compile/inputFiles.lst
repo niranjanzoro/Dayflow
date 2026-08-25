@@ -3,6 +3,7 @@ D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\config\SecurityConfig.
 D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\controller\AttendanceController.java
 D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\controller\AuthController.java
 D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\controller\EmployeeController.java
+D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\controller\GlobalExceptionHandler.java
 D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\controller\HealthController.java
 D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\controller\LeaveController.java
 D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\controller\PayrollController.java
@@ -25,6 +26,7 @@ D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\security\JwtFilter.jav
 D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\security\JwtUtil.java
 D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\security\RateLimitingInterceptor.java
 D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\service\AttendanceService.java
+D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\service\EmailService.java
 D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\service\EmployeeService.java
 D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\service\LeaveService.java
 D:\odoo DayFlow\Dayflow\backend\src\main\java\com\dayflow\service\PayrollService.java

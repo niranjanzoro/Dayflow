@@ -4,9 +4,11 @@ import com.dayflow.model.Employee;
 import com.dayflow.model.Role;
 import com.dayflow.repository.EmployeeRepository;
 import com.dayflow.security.JwtUtil;
+import com.dayflow.service.EmailService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,13 +25,19 @@ public class AuthController {
     private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final EmailService emailService;
+
+    @Value("${dayflow.verification.code-ttl-minutes:15}")
+    private int verificationTtlMinutes;
 
     public AuthController(EmployeeRepository employeeRepository,
                            PasswordEncoder passwordEncoder,
-                           JwtUtil jwtUtil) {
+                           JwtUtil jwtUtil,
+                           EmailService emailService) {
         this.employeeRepository = employeeRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.emailService = emailService;
     }
 
         @PostMapping({"/register", "/signup"})
@@ -53,17 +61,22 @@ public class AuthController {
         employee.setRole(Role.EMPLOYEE);
         employee.setStatus("PENDING");
         employee.setEmailVerified(false);
-        employee.setVerificationCode(String.format("%06d", ThreadLocalRandom.current().nextInt(1_000_000)));
-        employee.setVerificationExpiresAt(LocalDateTime.now().plusMinutes(15));
+        String code = generateVerificationCode();
+        employee.setVerificationCode(code);
+        employee.setVerificationExpiresAt(LocalDateTime.now().plusMinutes(verificationTtlMinutes));
         employee.setJoiningDate(LocalDate.now());
         employee.setJobTitle("Employee");
         employee.setFailedLoginAttempts(0);
         employee.setLocked(false);
 
         Employee saved = employeeRepository.save(employee);
+        emailService.sendVerificationCode(saved.getEmail(), saved.getName(), code);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(new RegistrationResponse(
-                saved.getEmail(), saved.getVerificationCode()));
+        // SECURITY: the verification code is only ever delivered by email -
+        // it is never returned in the API response.
+        return ResponseEntity.status(HttpStatus.CREATED).body(new MessageResponse(
+                "Account created. A verification code was sent to " + saved.getEmail()
+                        + ". It expires in " + verificationTtlMinutes + " minutes."));
     }
 
     @PostMapping("/login")
@@ -77,6 +90,10 @@ public class AuthController {
         if (!employee.isEmailVerified()) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ErrorResponse("Please verify your email before signing in"));
+        }
+        if ("PENDING".equals(employee.getStatus())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ErrorResponse("Your account is awaiting HR approval. You will be able to sign in once HR approves it."));
         }
         if ("DEACTIVATED".equals(employee.getStatus())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -101,17 +118,39 @@ public class AuthController {
         public ResponseEntity<?> verifyEmail(@Valid @RequestBody VerifyEmailRequest req) {
                 Employee employee = employeeRepository.findByEmail(req.email()).orElse(null);
                 if (employee == null || employee.isEmailVerified()
-                                || !req.code().equals(employee.getVerificationCode())
+                                || !req.code().trim().equals(employee.getVerificationCode())
                                 || employee.getVerificationExpiresAt() == null
                                 || employee.getVerificationExpiresAt().isBefore(LocalDateTime.now())) {
                         return ResponseEntity.badRequest().body(new ErrorResponse("Invalid or expired verification code"));
                 }
+                // Verification only proves the email is real. The account stays
+                // PENDING until HR approves it - see EmployeeController approve.
                 employee.setEmailVerified(true);
-                employee.setStatus("ACTIVE");
                 employee.setVerificationCode(null);
                 employee.setVerificationExpiresAt(null);
                 employeeRepository.save(employee);
-                return ResponseEntity.ok(new MessageResponse("Email verified successfully"));
+                return ResponseEntity.ok(new MessageResponse(
+                                "Email verified successfully. Your account is awaiting HR approval."));
+        }
+
+        @PostMapping("/resend-verification")
+        public ResponseEntity<?> resendVerification(@Valid @RequestBody ResendVerificationRequest req) {
+                Employee employee = employeeRepository.findByEmail(req.email()).orElse(null);
+                // Same response whether or not the account exists, so the API
+                // never leaks which emails are registered.
+                if (employee == null) {
+                        return ResponseEntity.ok(new MessageResponse(
+                                        "If that email is registered, a new verification code has been sent."));
+                }
+                if (employee.isEmailVerified()) {
+                        return ResponseEntity.badRequest().body(new ErrorResponse("Email is already verified"));
+                }
+                String code = generateVerificationCode();
+                employee.setVerificationCode(code);
+                employee.setVerificationExpiresAt(LocalDateTime.now().plusMinutes(verificationTtlMinutes));
+                employeeRepository.save(employee);
+                emailService.sendVerificationCode(employee.getEmail(), employee.getName(), code);
+                return ResponseEntity.ok(new MessageResponse("A new verification code has been sent."));
         }
 
         private String generateEmployeeId() {
@@ -120,6 +159,10 @@ public class AuthController {
                         employeeId = "EMP" + ThreadLocalRandom.current().nextInt(100000, 999999);
                 } while (employeeRepository.existsByEmployeeId(employeeId));
                 return employeeId;
+        }
+
+        private String generateVerificationCode() {
+                return String.format("%06d", ThreadLocalRandom.current().nextInt(1_000_000));
         }
 
     public record RegisterRequest(
@@ -141,8 +184,8 @@ public class AuthController {
                                String status, String phone, String department, String designation,
                                LocalDate joiningDate) {}
 
-    public record RegistrationResponse(String email, String verificationCode) {}
     public record VerifyEmailRequest(@Email @NotBlank String email, @NotBlank String code) {}
+    public record ResendVerificationRequest(@Email @NotBlank String email) {}
     public record MessageResponse(String message) {}
 
     public record ErrorResponse(String message) {}

@@ -24,6 +24,9 @@ export async function login({ email, password }) {
     if (!user || user.password !== password) {
       throw new Error('Invalid email or password.');
     }
+    if (user.emailVerified === false) {
+      throw new Error('Please verify your email before signing in.');
+    }
     if (user.status === EMPLOYEE_STATUS.PENDING) {
       throw new Error('Your account is awaiting HR approval. Please check back soon.');
     }
@@ -59,11 +62,14 @@ export async function signupEmployee({ name, email, password, phone, department,
       status: EMPLOYEE_STATUS.PENDING, // HR must approve before first login
       joinDate: new Date().toISOString().slice(0, 10),
       employeeCode: `DF-${String(db.users.length + 1).padStart(4, '0')}`,
+      emailVerified: false,
+      verificationCode: mockCode(),
     };
     db.users.push(newUser);
     db.leaveAllocations[newUser.id] = { casual: 12, sick: 8, earned: 15, used: { casual: 0, sick: 0, earned: 0 } };
     saveDB(db);
-    return sanitize(newUser);
+    // Mock mode has no mailbox - surface the code so the demo stays testable.
+    return { verificationCode: newUser.verificationCode };
   }
 
   const { data } = await axiosClient.post('/auth/signup', {
@@ -73,9 +79,42 @@ export async function signupEmployee({ name, email, password, phone, department,
 }
 
 export async function verifyEmail(email, code) {
-  if (USE_MOCK) return { message: 'Email verified successfully' };
+  if (USE_MOCK) {
+    await delay(700);
+    const db = loadDB();
+    const user = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    if (!user || user.emailVerified || user.verificationCode !== code.trim()) {
+      throw new Error('Invalid or expired verification code.');
+    }
+    user.emailVerified = true;
+    // Verification only proves the email is real - the account stays PENDING
+    // until HR approves it from Employee Management. Mirrors the backend.
+    delete user.verificationCode;
+    saveDB(db);
+    return { message: 'Email verified successfully. Your account is awaiting HR approval.' };
+  }
   const { data } = await axiosClient.post('/auth/verify-email', { email, code });
   return data;
+}
+
+export async function resendVerification(email) {
+  if (USE_MOCK) {
+    await delay(600);
+    const db = loadDB();
+    const user = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    if (!user || user.emailVerified) {
+      throw new Error('Unable to resend the verification code.');
+    }
+    user.verificationCode = mockCode();
+    saveDB(db);
+    return { message: 'A new verification code has been sent.', verificationCode: user.verificationCode };
+  }
+  const { data } = await axiosClient.post('/auth/resend-verification', { email });
+  return data;
+}
+
+function mockCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 export async function forgotPassword({ email }) {

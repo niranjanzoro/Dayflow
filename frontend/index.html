@@ -13,7 +13,19 @@
     <!-- SECURITY: XSS Protection -->
     <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
     <!-- SECURITY: Referrer Policy -->
-    <meta name="referrer" content="strict-origin-when-cross-origin" />    <title>Dayflow HRMS</title>
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <!-- Apply saved theme before first paint to avoid a flash of the wrong theme -->
+    <script>
+      try {
+        var t = localStorage.getItem('dayflow_theme')
+          || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+    <title>Dayflow HRMS</title>
+    <meta name="description" content="Dayflow HRMS - attendance, leave and payroll for your whole team. HR and employees, one dashboard." />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F3F5F9" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0D141F" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

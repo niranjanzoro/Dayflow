@@ -18,23 +18,29 @@ public class EmployeeController {
     @Autowired
     private EmployeeService employeeService;
 
+    @GetMapping("/me")
     public ResponseEntity<Employee> getMyProfile(Authentication authentication) {
         String employeeId = authentication.getName(); // principal set in JwtFilter
         return ResponseEntity.ok(employeeService.getMyProfile(employeeId));
     }
 
+    @PutMapping("/me")
     public ResponseEntity<Employee> updateMyProfile(Authentication authentication,
                                                       @RequestBody Employee updates) {
         String employeeId = authentication.getName();
         return ResponseEntity.ok(employeeService.updateMyProfile(employeeId, updates));
     }
 
+    @GetMapping
+    @PreAuthorize("hasRole('HR')")
     public ResponseEntity<List<Employee>> getAllEmployees() {
         return ResponseEntity.ok(employeeService.getAllEmployees());
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('HR')")
     public ResponseEntity<Employee> updateEmployee(@PathVariable Long id,
-                                                     @Valid @RequestBody Employee updates) {
+                                                      @Valid @RequestBody Employee updates) {
         return ResponseEntity.ok(employeeService.updateEmployee(id, updates));
     }
 

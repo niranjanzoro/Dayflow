@@ -1,11 +1,15 @@
 package com.dayflow.service;
 
 import com.dayflow.model.Employee;
+import com.dayflow.model.LeaveAllocation;
+import com.dayflow.model.LeaveRequest;
 import com.dayflow.model.Role;
 import com.dayflow.repository.EmployeeRepository;
+import com.dayflow.repository.LeaveAllocationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -26,6 +30,16 @@ public class EmployeeService {
 
     @Autowired
     private EmployeeRepository employeeRepository;
+
+    @Autowired
+    private LeaveAllocationRepository leaveAllocationRepository;
+
+    // Default annual entitlements granted on HR approval - mirrors the
+    // mock-mode seeding (casual 12 / sick 8 / earned 15) so both modes of
+    // the app show identical balances.
+    private static final double PAID_DAYS = 12;
+    private static final double SICK_DAYS = 8;
+    private static final double EARNED_DAYS = 15;
 
     public Employee getMyProfile(String employeeId) {
         return employeeRepository.findByEmployeeId(employeeId)
@@ -55,7 +69,40 @@ public class EmployeeService {
     public Employee setStatus(Long id, String status) {
         Employee employee = getEmployee(id);
         employee.setStatus(status);
-        return employeeRepository.save(employee);
+        Employee saved = employeeRepository.save(employee);
+        if ("ACTIVE".equals(status)) {
+            seedLeaveAllocations(saved);
+        }
+        return saved;
+    }
+
+    /**
+     * First activation (HR approval) grants the standard leave entitlements.
+     * Idempotent - existing allocations are never overwritten, so
+     * deactivate/reactivate cycles don't reset balances.
+     */
+    private void seedLeaveAllocations(Employee employee) {
+        LocalDate now = LocalDate.now();
+        LocalDate yearEnd = now.plusYears(1);
+        seedIfAbsent(employee, LeaveRequest.LeaveType.PAID, PAID_DAYS, now, yearEnd);
+        seedIfAbsent(employee, LeaveRequest.LeaveType.SICK, SICK_DAYS, now, yearEnd);
+        seedIfAbsent(employee, LeaveRequest.LeaveType.UNPAID, EARNED_DAYS, now, yearEnd);
+    }
+
+    private void seedIfAbsent(Employee employee, LeaveRequest.LeaveType type,
+                              double days, LocalDate from, LocalDate to) {
+        if (leaveAllocationRepository.findByEmployeeIdAndLeaveType(
+                employee.getEmployeeId(), type).isEmpty()) {
+            LeaveAllocation allocation = new LeaveAllocation();
+            allocation.setEmployeeId(employee.getEmployeeId());
+            allocation.setLeaveType(type);
+            allocation.setTotalDays(days);
+            allocation.setUsedDays(0.0);
+            allocation.setValidityStart(from);
+            allocation.setValidityEnd(to);
+            allocation.setAllocatedBy("SYSTEM");
+            leaveAllocationRepository.save(allocation);
+        }
     }
 
     public Employee setRole(Long id, Role role) {

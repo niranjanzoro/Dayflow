@@ -1,15 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- Spring Boot default configuration -->
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
-    <!-- Property for log path -->
     <property name="LOG_PATH" value="${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}}/dayflow}"/>
     <property name="LOG_FILE" value="${LOG_FILE:-${LOG_PATH}/spring.log}"/>
     <property name="LOG_FILE_MAX_SIZE" value="${LOG_FILE_MAX_SIZE:-10MB}"/>
     <property name="LOG_FILE_MAX_HISTORY" value="${LOG_FILE_MAX_HISTORY:-30}"/>
 
-    <!-- Standard Console Appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
@@ -17,7 +14,6 @@
         </encoder>
     </appender>
 
-    <!-- Application Audit Log (Security Events) -->
     <appender name="AUDIT_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/audit.log</file>
         <encoder>

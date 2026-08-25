@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Search, Check, ShieldPlus, ShieldMinus, UserX, UserCheck2, Users } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
+import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import * as employeeApi from '../api/employeeApi';
 import { ROLES, EMPLOYEE_STATUS } from '../utils/roles';
 
@@ -14,8 +16,17 @@ function StatusBadge({ status }) {
   return <span className={`badge badge-${map[status]}`}>{status}</span>;
 }
 
+const ACTION_TOASTS = {
+  approve: (name) => ({ type: 'success', message: `${name} approved and activated.` }),
+  promote: (name) => ({ type: 'success', message: `${name} promoted to HR.` }),
+  demote: (name) => ({ type: 'info', message: `${name} is now a standard employee.` }),
+  deactivate: (name) => ({ type: 'info', message: `${name} has been deactivated.` }),
+  reactivate: (name) => ({ type: 'success', message: `${name} has been reactivated.` }),
+};
+
 export default function EmployeeManagement() {
   const { user } = useAuth();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState('');
@@ -24,7 +35,7 @@ export default function EmployeeManagement() {
 
   useEffect(() => {
     let mounted = true;
-    
+
     (async () => {
       setLoading(true);
       const emps = await employeeApi.getAllEmployees();
@@ -33,7 +44,7 @@ export default function EmployeeManagement() {
         setLoading(false);
       }
     })();
-    
+
     return () => { mounted = false; };
   }, []);
 
@@ -59,13 +70,19 @@ export default function EmployeeManagement() {
   }, [employees, tab, search]);
 
   const runAction = async (type, emp) => {
-    if (type === 'approve') await employeeApi.approveEmployee(emp.id);
-    if (type === 'promote') await employeeApi.promoteToHR(emp.id);
-    if (type === 'demote') await employeeApi.demoteToEmployee(emp.id);
-    if (type === 'deactivate') await employeeApi.setEmployeeStatus(emp.id, EMPLOYEE_STATUS.DEACTIVATED);
-    if (type === 'reactivate') await employeeApi.setEmployeeStatus(emp.id, EMPLOYEE_STATUS.ACTIVE);
-    setConfirm(null);
-    await load();
+    try {
+      if (type === 'approve') await employeeApi.approveEmployee(emp.id);
+      if (type === 'promote') await employeeApi.promoteToHR(emp.id);
+      if (type === 'demote') await employeeApi.demoteToEmployee(emp.id);
+      if (type === 'deactivate') await employeeApi.setEmployeeStatus(emp.id, EMPLOYEE_STATUS.DEACTIVATED);
+      if (type === 'reactivate') await employeeApi.setEmployeeStatus(emp.id, EMPLOYEE_STATUS.ACTIVE);
+      const t = ACTION_TOASTS[type]?.(emp.name);
+      if (t) toast[t.type](t.message);
+      setConfirm(null);
+      await load();
+    } catch (err) {
+      toast.error(err.message || 'Action failed. Please try again.');
+    }
   };
 
   return (
@@ -75,19 +92,19 @@ export default function EmployeeManagement() {
           <h1>Employee Management</h1>
           <p className="sub">Approve new sign-ups, and grant or revoke HR access.</p>
         </div>
-        <div className="input-wrap" style={{ maxWidth: 260 }}>
+        <div className="input-wrap search-bar">
           <Search size={15} />
           <input className="input" placeholder="Search name, email, dept…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
       </div>
 
       <div className="tabs">
-        <button className={`tab ${tab === 'ALL' ? 'active' : ''}`} onClick={() => setTab('ALL')}>All ({employees.length})</button>
-        <button className={`tab ${tab === 'PENDING' ? 'active' : ''}`} onClick={() => setTab('PENDING')}>
+        <button type="button" className={`tab ${tab === 'ALL' ? 'active' : ''}`} onClick={() => setTab('ALL')}>All ({employees.length})</button>
+        <button type="button" className={`tab ${tab === 'PENDING' ? 'active' : ''}`} onClick={() => setTab('PENDING')}>
           Pending approval {pendingCount > 0 ? `(${pendingCount})` : ''}
         </button>
-        <button className={`tab ${tab === 'EMPLOYEE' ? 'active' : ''}`} onClick={() => setTab('EMPLOYEE')}>Employees</button>
-        <button className={`tab ${tab === 'HR' ? 'active' : ''}`} onClick={() => setTab('HR')}>HR / Admin</button>
+        <button type="button" className={`tab ${tab === 'EMPLOYEE' ? 'active' : ''}`} onClick={() => setTab('EMPLOYEE')}>Employees</button>
+        <button type="button" className={`tab ${tab === 'HR' ? 'active' : ''}`} onClick={() => setTab('HR')}>HR / Admin</button>
       </div>
 
       <div className="card">
@@ -105,18 +122,18 @@ export default function EmployeeManagement() {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={6} style={{ textAlign: 'center', padding: 30 }}><div className="spinner" style={{ margin: '0 auto' }} /></td></tr>
+                <tr><td colSpan={6} className="cell-center"><div className="spinner" /></td></tr>
               )}
               {!loading && visible.map((e) => {
                 const isSelf = e.id === user.id;
                 return (
                   <tr key={e.id}>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div className="sidebar-avatar" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{initials(e.name)}</div>
+                      <div className="row gap-10">
+                        <div className="avatar-sm">{initials(e.name)}</div>
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: 13.5 }}>{e.name}{isSelf && <span style={{ color: 'var(--ink-faint)', fontWeight: 500 }}> (you)</span>}</div>
-                          <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>{e.email}</div>
+                          <div className="text-body-sm">{e.name}{isSelf && <span className="text-xs fw-500"> (you)</span>}</div>
+                          <div className="text-xs">{e.email}</div>
                         </div>
                       </div>
                     </td>
@@ -125,29 +142,29 @@ export default function EmployeeManagement() {
                     <td><StatusBadge status={e.status} /></td>
                     <td className="mono">{e.joinDate}</td>
                     <td>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <div className="row wrap gap-6 row-end">
                         {e.status === EMPLOYEE_STATUS.PENDING && (
-                          <button className="btn btn-sm btn-primary" onClick={() => runAction('approve', e)}>
+                          <button type="button" className="btn btn-sm btn-primary" onClick={() => runAction('approve', e)}>
                             <Check size={13} /> Approve
                           </button>
                         )}
                         {e.status === EMPLOYEE_STATUS.ACTIVE && e.role === ROLES.EMPLOYEE && (
-                          <button className="btn btn-sm btn-accent" onClick={() => setConfirm({ type: 'promote', employee: e })}>
+                          <button type="button" className="btn btn-sm btn-accent" onClick={() => setConfirm({ type: 'promote', employee: e })}>
                             <ShieldPlus size={13} /> Promote to HR
                           </button>
                         )}
                         {e.status === EMPLOYEE_STATUS.ACTIVE && e.role === ROLES.HR && !isSelf && (
-                          <button className="btn btn-sm btn-ghost" onClick={() => setConfirm({ type: 'demote', employee: e })}>
+                          <button type="button" className="btn btn-sm btn-ghost" onClick={() => setConfirm({ type: 'demote', employee: e })}>
                             <ShieldMinus size={13} /> Remove HR access
                           </button>
                         )}
                         {e.status === EMPLOYEE_STATUS.ACTIVE && !isSelf && (
-                          <button className="btn btn-sm btn-danger" onClick={() => setConfirm({ type: 'deactivate', employee: e })}>
+                          <button type="button" className="btn btn-sm btn-danger" onClick={() => setConfirm({ type: 'deactivate', employee: e })}>
                             <UserX size={13} /> Deactivate
                           </button>
                         )}
                         {e.status === EMPLOYEE_STATUS.DEACTIVATED && (
-                          <button className="btn btn-sm btn-primary" onClick={() => runAction('reactivate', e)}>
+                          <button type="button" className="btn btn-sm btn-primary" onClick={() => runAction('reactivate', e)}>
                             <UserCheck2 size={13} /> Reactivate
                           </button>
                         )}
@@ -188,15 +205,12 @@ const CONFIRM_COPY = {
 function ConfirmModal({ type, employee, onCancel, onConfirm }) {
   const copy = CONFIRM_COPY[type](employee.name);
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ fontSize: 17, marginBottom: 8 }}>{copy.title}</h3>
-        <p style={{ fontSize: 13.5, lineHeight: 1.6 }}>{copy.body}</p>
-        <div className="modal-actions">
-          <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>
-          <button className={`btn ${copy.confirmClass}`} onClick={onConfirm}>{copy.confirmLabel}</button>
-        </div>
+    <Modal title={copy.title} onClose={onCancel}>
+      <p className="modal-note">{copy.body}</p>
+      <div className="modal-actions">
+        <button type="button" className="btn btn-ghost" onClick={onCancel}>Cancel</button>
+        <button type="button" className={`btn ${copy.confirmClass}`} onClick={onConfirm}>{copy.confirmLabel}</button>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -1,9 +1,12 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Users, UserCheck, CalendarClock, Wallet, ArrowRight, Check, Ban, ShieldCheck } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import StatCard from '../components/StatCard';
+import { StatCardSkeleton, ListRowsSkeleton } from '../components/Skeleton';
+import { HBarList } from '../components/Charts';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import * as employeeApi from '../api/employeeApi';
 import * as leaveApi from '../api/leaveApi';
 import * as payrollApi from '../api/payrollApi';
@@ -11,6 +14,7 @@ import { EMPLOYEE_STATUS, LEAVE_STATUS } from '../utils/roles';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState([]);
   const [leaves, setLeaves] = useState([]);
@@ -18,7 +22,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     let mounted = true;
-    
+
     (async () => {
       setLoading(true);
       const [emps, lv, pay] = await Promise.all([
@@ -33,7 +37,7 @@ export default function AdminDashboard() {
         setLoading(false);
       }
     })();
-    
+
     return () => { mounted = false; };
   }, []);
 
@@ -55,10 +59,39 @@ export default function AdminDashboard() {
   const pendingLeaves = leaves.filter((l) => l.status === LEAVE_STATUS.PENDING);
   const payrollDue = payroll.filter((p) => p.status !== 'PAID').length;
 
+  const byDepartment = useMemo(() => {
+    const counts = employees.reduce((acc, e) => {
+      const dept = e.department || 'Unassigned';
+      acc[dept] = (acc[dept] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts)
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6);
+  }, [employees]);
+
   const employeeName = (id) => employees.find((e) => e.id === id)?.name || id;
 
-  const approve = async (id) => { await employeeApi.approveEmployee(id); await load(); };
-  const review = async (id, status) => { await leaveApi.reviewLeave(id, status, user.name); await load(); };
+  const approve = async (employee) => {
+    try {
+      await employeeApi.approveEmployee(employee.id);
+      toast.success(`${employee.name} approved and activated.`);
+      await load();
+    } catch (err) {
+      toast.error(err.message || 'Could not approve the account.');
+    }
+  };
+
+  const review = async (leaveRequest, status) => {
+    try {
+      await leaveApi.reviewLeave(leaveRequest.id, status, user.name);
+      toast.success(`Leave ${status.toLowerCase()} for ${employeeName(leaveRequest.employeeId)}.`);
+      await load();
+    } catch (err) {
+      toast.error(err.message || 'Could not update the request.');
+    }
+  };
 
   return (
     <DashboardLayout title="Admin Dashboard">
@@ -69,69 +102,89 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-4" style={{ marginBottom: 18 }}>
-        <StatCard icon={Users} label="Total employees" value={loading ? '—' : employees.length} />
-        <StatCard icon={UserCheck} label="Active employees" value={loading ? '—' : activeCount} accent />
-        <StatCard icon={CalendarClock} label="Pending leave requests" value={loading ? '—' : pendingLeaves.length} />
-        <StatCard icon={Wallet} label="Payroll runs pending" value={loading ? '—' : payrollDue} />
+      <div className="grid grid-4 mb-lg">
+        {loading ? (
+          <><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /></>
+        ) : (
+          <>
+            <StatCard icon={Users} label="Total employees" value={employees.length} />
+            <StatCard icon={UserCheck} label="Active employees" value={activeCount} accent />
+            <StatCard icon={CalendarClock} label="Pending leave requests" value={pendingLeaves.length} />
+            <StatCard icon={Wallet} label="Payroll runs pending" value={payrollDue} />
+          </>
+        )}
       </div>
 
       <div className="grid grid-2">
         <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <div className="card-title">Pending employee approvals</div>
-          </div>
-          <p style={{ fontSize: 13, marginBottom: 14 }}>New sign-ups awaiting HR review before they can sign in.</p>
+          <div className="card-title">Pending employee approvals</div>
+          <p className="text-sm mb-md">New sign-ups awaiting HR review before they can sign in.</p>
 
-          {pendingApprovals.length === 0 && !loading && (
-            <div className="empty-state" style={{ padding: 24 }}>
+          {!loading && pendingApprovals.length === 0 && (
+            <div className="empty-inline">
               <ShieldCheck size={22} />
               <div>All caught up — no pending sign-ups.</div>
             </div>
           )}
 
-          {pendingApprovals.map((e) => (
-            <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border-soft)' }}>
+          {loading && <ListRowsSkeleton rows={2} />}
+
+          {!loading && pendingApprovals.map((e) => (
+            <div key={e.id} className="list-row">
               <div>
-                <div style={{ fontSize: 13.5, fontWeight: 600 }}>{e.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>{e.department} · {e.email}</div>
+                <div className="text-body-sm">{e.name}</div>
+                <div className="text-xs">{e.department} · {e.email}</div>
               </div>
-              <button className="btn btn-sm btn-primary" onClick={() => approve(e.id)}>
+              <button type="button" className="btn btn-sm btn-primary" onClick={() => approve(e)}>
                 <Check size={13} /> Approve
               </button>
             </div>
           ))}
 
-          <Link to="/admin/employees" className="btn btn-ghost btn-sm" style={{ marginTop: 14 }}>
+          <Link to="/admin/employees" className="btn btn-ghost btn-sm mt-md">
             Manage employees <ArrowRight size={14} />
           </Link>
         </div>
 
         <div className="card">
           <div className="card-title">Pending leave requests</div>
-          <p style={{ fontSize: 13, marginBottom: 14 }}>Approve or reject requests awaiting your decision.</p>
+          <p className="text-sm mb-md">Approve or reject requests awaiting your decision.</p>
 
-          {pendingLeaves.length === 0 && !loading && (
-            <div className="empty-state" style={{ padding: 24 }}>No pending leave requests.</div>
+          {!loading && pendingLeaves.length === 0 && (
+            <div className="empty-inline">No pending leave requests.</div>
           )}
 
-          {pendingLeaves.slice(0, 5).map((l) => (
-            <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border-soft)' }}>
+          {loading && <ListRowsSkeleton rows={3} />}
+
+          {!loading && pendingLeaves.slice(0, 5).map((l) => (
+            <div key={l.id} className="list-row">
               <div>
-                <div style={{ fontSize: 13.5, fontWeight: 600 }}>{employeeName(l.employeeId)}</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>{l.type} · {l.fromDate} → {l.toDate}</div>
+                <div className="text-body-sm">{employeeName(l.employeeId)}</div>
+                <div className="text-xs">{l.type} · {l.fromDate} → {l.toDate}</div>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button className="btn btn-sm btn-primary" onClick={() => review(l.id, LEAVE_STATUS.APPROVED)}><Check size={13} /></button>
-                <button className="btn btn-sm btn-danger" onClick={() => review(l.id, LEAVE_STATUS.REJECTED)}><Ban size={13} /></button>
+              <div className="row gap-6">
+                <button type="button" className="btn btn-sm btn-primary" aria-label="Approve leave"
+                  onClick={() => review(l, LEAVE_STATUS.APPROVED)}><Check size={13} /></button>
+                <button type="button" className="btn btn-sm btn-danger" aria-label="Reject leave"
+                  onClick={() => review(l, LEAVE_STATUS.REJECTED)}><Ban size={13} /></button>
               </div>
             </div>
           ))}
 
-          <Link to="/admin/leave" className="btn btn-ghost btn-sm" style={{ marginTop: 14 }}>
+          <Link to="/admin/leave" className="btn btn-ghost btn-sm mt-md">
             Go to leave approvals <ArrowRight size={14} />
           </Link>
         </div>
+      </div>
+
+      <div className="card mt-lg">
+        <div className="card-title">Headcount by department</div>
+        <p className="text-sm mb-md">Where your people are, at a glance.</p>
+        {!loading && byDepartment.length > 0 ? (
+          <HBarList data={byDepartment} />
+        ) : (
+          <ListRowsSkeleton rows={3} />
+        )}
       </div>
     </DashboardLayout>
   );

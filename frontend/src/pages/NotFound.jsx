@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom';
-import { CompassIcon } from 'lucide-react';
+import { Compass } from 'lucide-react';
 
 export default function NotFound() {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, background: 'var(--bg)' }}>
-      <CompassIcon size={34} color="var(--primary)" />
-      <h1 style={{ fontSize: 22 }}>Page not found</h1>
+    <div className="not-found-screen">
+      <Compass size={34} color="var(--brand-text)" />
+      <h1 className="h2-lg">Page not found</h1>
       <p>The page you're looking for doesn't exist.</p>
-      <Link to="/" className="btn btn-primary" style={{ marginTop: 8 }}>Back to Dayflow</Link>
+      <Link to="/" className="btn btn-primary mt-sm">Back to Dayflow</Link>
     </div>
   );
 }

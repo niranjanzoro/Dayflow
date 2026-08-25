@@ -111,11 +111,29 @@ public class LeaveService {
     /** PUT /api/leave/{id}/approve (HR) */
     public LeaveRequest approve(Long id, String hrEmployeeId, String adminComment) {
         LeaveRequest request = getOrThrow(id);
+        boolean alreadyApproved = request.getStatus() == LeaveRequest.LeaveStatus.APPROVED;
         request.setStatus(LeaveRequest.LeaveStatus.APPROVED);
         request.setAdminComment(adminComment);
         request.setApprovedBy(hrEmployeeId);
         request.setActionDate(LocalDateTime.now());
-        return leaveRequestRepository.save(request);
+        LeaveRequest saved = leaveRequestRepository.save(request);
+        // Record usage against the allocation exactly once per transition.
+        if (!alreadyApproved) {
+            deductBalance(saved);
+        }
+        return saved;
+    }
+
+    private void deductBalance(LeaveRequest request) {
+        leaveAllocationRepository
+                .findByEmployeeIdAndLeaveType(request.getEmployeeId(), request.getLeaveType())
+                .ifPresent(allocation -> {
+                    long days = java.time.temporal.ChronoUnit.DAYS.between(
+                            request.getStartDate(), request.getEndDate()) + 1;
+                    double current = allocation.getUsedDays() != null ? allocation.getUsedDays() : 0.0;
+                    allocation.setUsedDays(current + Math.max(days, 0));
+                    leaveAllocationRepository.save(allocation);
+                });
     }
 
     /** PUT /api/leave/{id}/reject (HR) */

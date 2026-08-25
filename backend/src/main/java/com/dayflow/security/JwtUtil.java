@@ -89,11 +89,21 @@ public class JwtUtil {
     }
 
     public boolean isTokenValid(String token, String expectedEmail) {
-        final String email = extractEmail(token);
-        return email.equals(expectedEmail) && !isTokenExpired(token);
+        try {
+            final String email = extractEmail(token);
+            return email.equals(expectedEmail) && !isTokenExpired(token);
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            return false;
+        }
     }
 
     public boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+        // An expired token fails parsing with ExpiredJwtException - treat it
+        // as expired rather than letting the exception reach callers.
+        try {
+            return extractExpiration(token).before(new Date());
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            return true;
+        }
     }
 }

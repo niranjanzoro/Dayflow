@@ -2,6 +2,7 @@ package com.dayflow;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
  * Dayflow HRMS - Backend entry point.
@@ -12,6 +13,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * are component-scanned automatically from this root class.
  */
 @SpringBootApplication
+@EnableAsync
 public class DayflowApplication {
 
     public static void main(String[] args) {
